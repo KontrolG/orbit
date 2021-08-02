@@ -1,40 +1,56 @@
-import React, { useState } from 'react';
-import { Form, Formik } from 'formik';
-import * as Yup from 'yup';
-import Card from '../components/common/Card';
-import GradientButton from '../components/common/GradientButton';
-import Hyperlink from '../components/common/Hyperlink';
-import Label from '../components/common/Label';
-import FormInput from '../components/FormInput';
-import GradientBar from './../components/common/GradientBar';
-import FormError from './../components/FormError';
-import FormSuccess from './../components/FormSuccess';
-import logo from './../images/logo.png';
+import React, { useState } from "react";
+import { Form, Formik } from "formik";
+import * as Yup from "yup";
+import Card from "../components/common/Card";
+import GradientButton from "../components/common/GradientButton";
+import Hyperlink from "../components/common/Hyperlink";
+import Label from "../components/common/Label";
+import FormInput from "../components/FormInput";
+import GradientBar from "./../components/common/GradientBar";
+import FormError from "./../components/FormError";
+import FormSuccess from "./../components/FormSuccess";
+import logo from "./../images/logo.png";
+import { signUpWithEmail } from "../util/publicOrbitApi";
+import { DASHBOARD_PATH } from "../constants/paths";
+import { useRouter } from "../hooks/useRouter";
+import { sleep } from "../util";
 
 const SignupSchema = Yup.object().shape({
-  firstName: Yup.string().required(
-    'First name is required'
-  ),
-  lastName: Yup.string().required('Last name is required'),
-  email: Yup.string()
-    .email('Invalid email')
-    .required('Email is required'),
-  password: Yup.string().required('Password is required')
+  firstName: Yup.string().required("First name is required"),
+  lastName: Yup.string().required("Last name is required"),
+  email: Yup.string().email("Invalid email").required("Email is required"),
+  password: Yup.string().required("Password is required")
 });
 
-const Signup = () => {
+function Signup() {
   const [signupSuccess, setSignupSuccess] = useState();
   const [signupError, setSignupError] = useState();
   const [loginLoading, setLoginLoading] = useState(false);
+  const router = useRouter();
 
-  const submitCredentials = async credentials => {
+  async function requestSignUp(credentials) {
+    setSignupError("");
+    const response = await signUpWithEmail(credentials);
+    setSignupSuccess(response.message);
+    await sleep(700);
+    router.push(DASHBOARD_PATH);
+  }
+
+  function changeSignupError(error) {
+    const { data } = error.response;
+    setSignupError(data.message);
+    setSignupSuccess("");
+  }
+
+  const submitCredentials = async (credentials) => {
+    if (loginLoading) return;
+    setLoginLoading(true);
     try {
-      setLoginLoading(true);
+      await requestSignUp(credentials);
     } catch (error) {
+      changeSignupError(error);
+    } finally {
       setLoginLoading(false);
-      const { data } = error.response;
-      setSignupError(data.message);
-      setSignupSuccess('');
     }
   };
 
@@ -53,35 +69,25 @@ const Signup = () => {
                   Sign up for an account
                 </h2>
                 <p className="text-gray-600 text-center">
-                  Already have an account?{' '}
+                  Already have an account?{" "}
                   <Hyperlink to="login" text="Log in now" />
                 </p>
               </div>
               <Formik
                 initialValues={{
-                  firstName: '',
-                  lastName: '',
-                  email: '',
-                  password: ''
+                  firstName: "",
+                  lastName: "",
+                  email: "",
+                  password: ""
                 }}
-                onSubmit={values =>
-                  submitCredentials(values)
-                }
+                onSubmit={submitCredentials}
                 validationSchema={SignupSchema}
               >
                 {() => (
                   <Form className="mt-8">
-                    {signupSuccess && (
-                      <FormSuccess text={signupSuccess} />
-                    )}
-                    {signupError && (
-                      <FormError text={signupError} />
-                    )}
-                    <input
-                      type="hidden"
-                      name="remember"
-                      value="true"
-                    />
+                    {signupSuccess && <FormSuccess text={signupSuccess} />}
+                    {signupError && <FormError text={signupError} />}
+                    <input type="hidden" name="remember" value="true" />
                     <div>
                       <div className="flex">
                         <div className="mb-2 mr-2 w-1/2">
@@ -147,6 +153,6 @@ const Signup = () => {
       </section>
     </>
   );
-};
+}
 
 export default Signup;
