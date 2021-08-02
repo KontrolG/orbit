@@ -1,0 +1,25 @@
+{
+  "name": "reactsecurity-project",
+  "version": "1.0.0",
+  "description": "<p>\r   <a href=\"https://twitter.com/ryanchenkie\" target=\"_blank\">\r     <img alt=\"Twitter: ryanchenkie\" src=\"https://img.shields.io/twitter/follow/ryanchenkie.svg?style=social\" />\r   </a>\r </p>",
+  "main": "index.js",
+  "dependencies": {
+    "concurrently": "^6.2.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "server": "cd orbit-api && npm run dev",
+    "app": "cd orbit-app && npm start",
+    "start": "concurrently \"npm run server\" \"npm run app\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KontrolG/orbit.git"
+  },
+  "author": "German Solano",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/KontrolG/orbit/issues"
+  },
+  "homepage": "https://github.com/KontrolG/orbit#readme"
+}
