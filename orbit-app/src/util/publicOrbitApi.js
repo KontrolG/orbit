@@ -21,24 +21,17 @@ const publicFetch = axios.create({
 
 const getResponseData = (response) => response.data;
 
-export const signUpWithEmail = ({
-  email = "",
-  firstName = "",
-  lastName = "",
-  password = ""
-}) =>
+export const signUp = ({ email, ...signUpData }) =>
   publicFetch({
     method: "POST",
     url: "/signup",
     data: sanitizeBody({
       email: email?.toLowerCase?.(),
-      firstName,
-      lastName,
-      password
+      ...signUpData
     })
   }).then(getResponseData);
 
-export const signInWithEmail = ({ email = "", password = "" }) =>
+export const authenticate = ({ email = "", password = "" }) =>
   publicFetch({
     method: "POST",
     url: "/authenticate",
