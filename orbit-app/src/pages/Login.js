@@ -10,10 +10,11 @@ import FormError from "./../components/FormError";
 import GradientBar from "./../components/common/GradientBar";
 import GradientButton from "../components/common/GradientButton";
 import logo from "./../images/logo.png";
-import { signInWithEmail } from "../util/publicOrbitApi";
+import { authenticate } from "../util/publicOrbitApi";
 import { sleep } from "../util";
 import { DASHBOARD_PATH } from "../constants/paths";
 import { useRouter } from "../hooks/useRouter";
+import { useAuth } from "../context/AuthContext";
 
 const LoginSchema = Yup.object().shape({
   email: Yup.string().required("Email is required"),
@@ -24,6 +25,7 @@ const Login = () => {
   const [loginSuccess, setLoginSuccess] = useState();
   const [loginError, setLoginError] = useState();
   const [loginLoading, setLoginLoading] = useState(false);
+  const { signInWithEmail } = useAuth();
   const router = useRouter();
 
   async function requestLogin(credentials) {

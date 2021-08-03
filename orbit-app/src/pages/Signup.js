@@ -10,10 +10,10 @@ import GradientBar from "./../components/common/GradientBar";
 import FormError from "./../components/FormError";
 import FormSuccess from "./../components/FormSuccess";
 import logo from "./../images/logo.png";
-import { signUpWithEmail } from "../util/publicOrbitApi";
 import { DASHBOARD_PATH } from "../constants/paths";
 import { useRouter } from "../hooks/useRouter";
 import { sleep } from "../util";
+import { useAuth } from "../context/AuthContext";
 
 const SignupSchema = Yup.object().shape({
   firstName: Yup.string().required("First name is required"),
@@ -26,12 +26,13 @@ function Signup() {
   const [signupSuccess, setSignupSuccess] = useState();
   const [signupError, setSignupError] = useState();
   const [loginLoading, setLoginLoading] = useState(false);
+  const { signUpWithEmail } = useAuth();
   const router = useRouter();
 
   async function requestSignUp(credentials) {
     setSignupError("");
-    const response = await signUpWithEmail(credentials);
-    setSignupSuccess(response.message);
+    const result = await signUpWithEmail(credentials);
+    setSignupSuccess(result.message);
     await sleep(700);
     router.push(DASHBOARD_PATH);
   }
