@@ -37,3 +37,13 @@ export const signUpWithEmail = ({
       password
     })
   }).then(getResponseData);
+
+export const signInWithEmail = ({ email = "", password = "" }) =>
+  publicFetch({
+    method: "POST",
+    url: "/authenticate",
+    data: sanitizeBody({
+      email: email?.toLowerCase?.(),
+      password
+    })
+  }).then(getResponseData);

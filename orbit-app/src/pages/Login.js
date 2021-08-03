@@ -1,34 +1,54 @@
-import React, { useState } from 'react';
-import { Form, Formik } from 'formik';
-import * as Yup from 'yup';
-import Card from '../components/common/Card';
-import Hyperlink from './../components/common/Hyperlink';
-import Label from './../components/common/Label';
-import FormInput from './../components/FormInput';
-import FormSuccess from './../components/FormSuccess';
-import FormError from './../components/FormError';
-import GradientBar from './../components/common/GradientBar';
-import GradientButton from '../components/common/GradientButton';
-import logo from './../images/logo.png';
+import React, { useState } from "react";
+import { Form, Formik } from "formik";
+import * as Yup from "yup";
+import Card from "../components/common/Card";
+import Hyperlink from "./../components/common/Hyperlink";
+import Label from "./../components/common/Label";
+import FormInput from "./../components/FormInput";
+import FormSuccess from "./../components/FormSuccess";
+import FormError from "./../components/FormError";
+import GradientBar from "./../components/common/GradientBar";
+import GradientButton from "../components/common/GradientButton";
+import logo from "./../images/logo.png";
+import { signInWithEmail } from "../util/publicOrbitApi";
+import { sleep } from "../util";
+import { DASHBOARD_PATH } from "../constants/paths";
+import { useRouter } from "../hooks/useRouter";
 
 const LoginSchema = Yup.object().shape({
-  email: Yup.string().required('Email is required'),
-  password: Yup.string().required('Password is required')
+  email: Yup.string().required("Email is required"),
+  password: Yup.string().required("Password is required")
 });
 
 const Login = () => {
   const [loginSuccess, setLoginSuccess] = useState();
   const [loginError, setLoginError] = useState();
   const [loginLoading, setLoginLoading] = useState(false);
+  const router = useRouter();
 
-  const submitCredentials = async credentials => {
+  async function requestLogin(credentials) {
+    setLoginError("");
+    const response = await signInWithEmail(credentials);
+    setLoginSuccess(response.message);
+    await sleep(700);
+    router.push(DASHBOARD_PATH);
+  }
+
+  function changeLoginError(error) {
+    const { data } = error.response;
+    setLoginError(data.message);
+    setLoginSuccess(null);
+  }
+
+  const submitCredentials = async (credentials) => {
+    if (loginLoading) return;
+    setLoginLoading(true);
     try {
-      setLoginLoading(true);
+      await requestLogin(credentials);
     } catch (error) {
+      changeLoginError(error);
+    } finally {
       setLoginLoading(false);
-      const { data } = error.response;
-      setLoginError(data.message);
-      setLoginSuccess(null);
     }
   };
 
@@ -47,32 +67,22 @@ const Login = () => {
                   Log in to your account
                 </h2>
                 <p className="text-gray-600 text-center">
-                  Don't have an account?{' '}
-                  <Hyperlink
-                    to="signup"
-                    text="Sign up now"
-                  />
+                  Don't have an account?{" "}
+                  <Hyperlink to="signup" text="Sign up now" />
                 </p>
               </div>
-
               <Formik
                 initialValues={{
-                  email: '',
-                  password: ''
+                  email: "",
+                  password: ""
                 }}
-                onSubmit={values =>
-                  submitCredentials(values)
-                }
+                onSubmit={submitCredentials}
                 validationSchema={LoginSchema}
               >
                 {() => (
                   <Form className="mt-8">
-                    {loginSuccess && (
-                      <FormSuccess text={loginSuccess} />
-                    )}
-                    {loginError && (
-                      <FormError text={loginError} />
-                    )}
+                    {loginSuccess && <FormSuccess text={loginSuccess} />}
+                    {loginError && <FormError text={loginError} />}
                     <div>
                       <div className="mb-2">
                         <div className="mb-1">
