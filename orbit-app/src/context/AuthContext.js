@@ -1,58 +1,71 @@
-import React, { createContext, useContext, useState } from "react";
-import * as publicOrbitApi from "../util/publicOrbitApi";
+import React, { createContext, useState } from 'react';
+import { useHistory } from 'react-router-dom';
 
 const AuthContext = createContext();
 const { Provider } = AuthContext;
 
-const initialAuthState = {
-  token: null,
-  expiresAt: null,
-  userInfo: {}
-};
+const AuthProvider = ({ children }) => {
+  const history = useHistory();
 
-function AuthProvider({ children }) {
-  const [authState, setAuthState] = useState(initialAuthState);
+  const token = localStorage.getItem('token');
+  const userInfo = localStorage.getItem('userInfo');
+  const expiresAt = localStorage.getItem('expiresAt');
 
-  async function signUpWithEmail({
-    email = "",
-    firstName = "",
-    lastName = "",
-    password = ""
-  }) {
-    const response = await publicOrbitApi.signUp({
-      email,
-      firstName,
-      lastName,
-      password
+  const [authState, setAuthState] = useState({
+    token,
+    expiresAt,
+    userInfo: userInfo ? JSON.parse(userInfo) : {}
+  });
+
+  const setAuthInfo = ({ token, userInfo, expiresAt }) => {
+    localStorage.setItem('token', token);
+    localStorage.setItem(
+      'userInfo',
+      JSON.stringify(userInfo)
+    );
+    localStorage.setItem('expiresAt', expiresAt);
+
+    setAuthState({
+      token,
+      userInfo,
+      expiresAt
     });
-    const { token, userInfo, expiresAt, message } = response;
-    setAuthState({ token, userInfo, expiresAt });
-    return { message, userInfo };
-  }
+  };
 
-  async function signInWithEmail({ email = "", password = "" }) {
-    const response = await publicOrbitApi.authenticate({
-      email,
-      password
-    });
-    const { token, userInfo, expiresAt, message } = response;
-    setAuthState({ token, userInfo, expiresAt });
-    return { message, userInfo };
-  }
+  const logout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('userInfo');
+    localStorage.removeItem('expiresAt');
+    setAuthState({});
+    history.push('/login');
+  };
+
+  const isAuthenticated = () => {
+    if (!authState.token || !authState.expiresAt) {
+      return false;
+    }
+    return (
+      new Date().getTime() / 1000 < authState.expiresAt
+    );
+  };
+
+  const isAdmin = () => {
+    return authState.userInfo.role === 'admin';
+  };
 
   return (
-    <Provider value={{ authState, signUpWithEmail, signInWithEmail }}>
+    <Provider
+      value={{
+        authState,
+        setAuthState: authInfo => setAuthInfo(authInfo),
+        logout,
+        isAuthenticated,
+        isAdmin
+      }}
+    >
       {children}
     </Provider>
   );
-}
+};
 
-function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth should be used within a AuthProvider");
-  }
-  return context;
-}
-
-export { AuthContext, AuthProvider, useAuth };
+export { AuthContext, AuthProvider };

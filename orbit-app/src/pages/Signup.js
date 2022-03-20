@@ -1,63 +1,66 @@
-import React, { useState } from "react";
-import { Form, Formik } from "formik";
-import * as Yup from "yup";
-import Card from "../components/common/Card";
-import GradientButton from "../components/common/GradientButton";
-import Hyperlink from "../components/common/Hyperlink";
-import Label from "../components/common/Label";
-import FormInput from "../components/FormInput";
-import GradientBar from "./../components/common/GradientBar";
-import FormError from "./../components/FormError";
-import FormSuccess from "./../components/FormSuccess";
-import logo from "./../images/logo.png";
-import { DASHBOARD_PATH } from "../constants/paths";
-import { useRouter } from "../hooks/useRouter";
-import { sleep } from "../util";
-import { useAuth } from "../context/AuthContext";
+import React, { useContext, useState } from 'react';
+import { Form, Formik } from 'formik';
+import * as Yup from 'yup';
+import Card from '../components/common/Card';
+import GradientButton from '../components/common/GradientButton';
+import Hyperlink from '../components/common/Hyperlink';
+import Label from '../components/common/Label';
+import FormInput from '../components/FormInput';
+import { AuthContext } from '../context/AuthContext';
+import GradientBar from './../components/common/GradientBar';
+import FormError from './../components/FormError';
+import FormSuccess from './../components/FormSuccess';
+import { publicFetch } from './../util/fetch';
+import logo from './../images/logo.png';
+import { Redirect } from 'react-router-dom';
 
 const SignupSchema = Yup.object().shape({
-  firstName: Yup.string().required("First name is required"),
-  lastName: Yup.string().required("Last name is required"),
-  email: Yup.string().email("Invalid email").required("Email is required"),
-  password: Yup.string().required("Password is required")
+  firstName: Yup.string().required(
+    'First name is required'
+  ),
+  lastName: Yup.string().required('Last name is required'),
+  email: Yup.string()
+    .email('Invalid email')
+    .required('Email is required'),
+  password: Yup.string().required('Password is required')
 });
 
-function Signup() {
+const Signup = () => {
+  const authContext = useContext(AuthContext);
   const [signupSuccess, setSignupSuccess] = useState();
   const [signupError, setSignupError] = useState();
+  const [redirectOnLogin, setRedirectOnLogin] = useState(
+    false
+  );
   const [loginLoading, setLoginLoading] = useState(false);
-  const { signUpWithEmail } = useAuth();
-  const router = useRouter();
 
-  async function requestSignUp(credentials) {
-    setSignupError("");
-    const result = await signUpWithEmail(credentials);
-    setSignupSuccess(result.message);
-    await sleep(700);
-    router.push(DASHBOARD_PATH);
-  }
-
-  function changeSignupError(error) {
-    const { data } = error.response;
-    setSignupError(data.message);
-    setSignupSuccess("");
-  }
-
-  const submitCredentials = async (credentials) => {
-    if (loginLoading) return;
-    setLoginLoading(true);
+  const submitCredentials = async credentials => {
     try {
-      await requestSignUp(credentials);
+      setLoginLoading(true);
+      const { data } = await publicFetch.post(
+        `signup`,
+        credentials
+      );
+
+      authContext.setAuthState(data);
+      setSignupSuccess(data.message);
+      setSignupError('');
+
+      setTimeout(() => {
+        setRedirectOnLogin(true);
+      }, 700);
     } catch (error) {
-      changeSignupError(error);
-    } finally {
       setLoginLoading(false);
+      const { data } = error.response;
+      setSignupError(data.message);
+      setSignupSuccess('');
     }
   };
 
   return (
     <>
-      <section className="w-1/2 h-screen m-auto p-8 sm:pt-10">
+      {redirectOnLogin && <Redirect to="/dashboard" />}
+      <section className="w-full sm:w-1/2 h-screen m-auto p-8 sm:pt-10">
         <GradientBar />
         <Card>
           <div className="flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -70,25 +73,35 @@ function Signup() {
                   Sign up for an account
                 </h2>
                 <p className="text-gray-600 text-center">
-                  Already have an account?{" "}
+                  Already have an account?{' '}
                   <Hyperlink to="login" text="Log in now" />
                 </p>
               </div>
               <Formik
                 initialValues={{
-                  firstName: "",
-                  lastName: "",
-                  email: "",
-                  password: ""
+                  firstName: '',
+                  lastName: '',
+                  email: '',
+                  password: ''
                 }}
-                onSubmit={submitCredentials}
+                onSubmit={values =>
+                  submitCredentials(values)
+                }
                 validationSchema={SignupSchema}
               >
                 {() => (
                   <Form className="mt-8">
-                    {signupSuccess && <FormSuccess text={signupSuccess} />}
-                    {signupError && <FormError text={signupError} />}
-                    <input type="hidden" name="remember" value="true" />
+                    {signupSuccess && (
+                      <FormSuccess text={signupSuccess} />
+                    )}
+                    {signupError && (
+                      <FormError text={signupError} />
+                    )}
+                    <input
+                      type="hidden"
+                      name="remember"
+                      value="true"
+                    />
                     <div>
                       <div className="flex">
                         <div className="mb-2 mr-2 w-1/2">
@@ -154,6 +167,6 @@ function Signup() {
       </section>
     </>
   );
-}
+};
 
 export default Signup;
