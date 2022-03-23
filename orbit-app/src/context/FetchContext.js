@@ -1,6 +1,7 @@
-import React, { createContext, useContext } from 'react';
-import axios from 'axios';
-import { AuthContext } from './AuthContext';
+import React, { createContext, useContext } from "react";
+import axios from "axios";
+import { AuthContext } from "./AuthContext";
+import createAuthRefreshInterceptor from "axios-auth-refresh";
 
 const FetchContext = createContext();
 const { Provider } = FetchContext;
@@ -13,24 +14,27 @@ const FetchProvider = ({ children }) => {
   });
 
   authAxios.interceptors.request.use(
-    config => {
-      config.headers.Authorization = `Bearer ${authContext.authState.token}`;
+    (config) => {
+      config.headers.Authorization = `Bearer ${authContext.getAccessToken()}`;
       return config;
     },
-    error => {
+    (error) => {
       return Promise.reject(error);
     }
   );
 
+  createAuthRefreshInterceptor(authAxios, authContext.refreshAuthHeaders, {
+    pauseInstanceWhileRefreshing: true
+  });
+
   authAxios.interceptors.response.use(
-    response => {
+    (response) => {
       return response;
     },
-    error => {
-      const code =
-        error && error.response ? error.response.status : 0;
+    (error) => {
+      const code = error && error.response ? error.response.status : 0;
       if (code === 401 || code === 403) {
-        console.log('error code', code);
+        console.log("error code", code);
       }
       return Promise.reject(error);
     }

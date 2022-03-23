@@ -40,3 +40,9 @@ export const authenticate = ({ email = "", password = "" }) =>
       password
     })
   }).then(getResponseData);
+
+export const getNewToken = () =>
+  publicFetch({
+    method: "GET",
+    url: "/token/refresh"
+  }).then(getResponseData);
