@@ -1,28 +1,46 @@
-require('dotenv').config();
-const express = require('express');
-const bodyParser = require('body-parser');
-const cors = require('cors');
-const jwt = require('express-jwt');
-const jwtDecode = require('jwt-decode');
-const mongoose = require('mongoose');
+require("dotenv").config();
+const express = require("express");
+const bodyParser = require("body-parser");
+const cors = require("cors");
+const jwt = require("express-jwt");
+const jwtDecode = require("jwt-decode");
+const mongoose = require("mongoose");
 
-const dashboardData = require('./data/dashboard');
-const User = require('./data/User');
-const InventoryItem = require('./data/InventoryItem');
+const dashboardData = require("./data/dashboard");
+const User = require("./data/User");
+const InventoryItem = require("./data/InventoryItem");
+const Token = require("./data/Token");
 
 const {
   createToken,
   hashPassword,
-  verifyPassword
-} = require('./util');
+  verifyPassword,
+  generateRefreshToken
+} = require("./util");
+const cookieParser = require("cookie-parser");
+
+async function createRefreshToken(user) {
+  try {
+    const refreshToken = generateRefreshToken();
+    const storedRefreshToken = new Token({
+      refreshToken,
+      userId: user._id
+    });
+    await storedRefreshToken.save();
+    return refreshToken;
+  } catch (error) {
+    throw error;
+  }
+}
 
 const app = express();
 
 app.use(cors());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
+app.use(cookieParser());
 
-app.post('/api/authenticate', async (req, res) => {
+app.post("/api/authenticate", async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -32,14 +50,11 @@ app.post('/api/authenticate', async (req, res) => {
 
     if (!user) {
       return res.status(403).json({
-        message: 'Wrong email or password.'
+        message: "Wrong email or password."
       });
     }
 
-    const passwordValid = await verifyPassword(
-      password,
-      user.password
-    );
+    const passwordValid = await verifyPassword(password, user.password);
 
     if (passwordValid) {
       const { password, bio, ...rest } = user;
@@ -50,39 +65,41 @@ app.post('/api/authenticate', async (req, res) => {
       const decodedToken = jwtDecode(token);
       const expiresAt = decodedToken.exp;
 
+      const refreshToken = await createRefreshToken(user);
+
+      res.cookie("refreshToken", refreshToken, {
+        httpOnly: true
+      });
+
       res.json({
-        message: 'Authentication successful!',
+        message: "Authentication successful!",
         token,
         userInfo,
         expiresAt
       });
     } else {
       res.status(403).json({
-        message: 'Wrong email or password.'
+        message: "Wrong email or password."
       });
     }
   } catch (err) {
     console.log(err);
-    return res
-      .status(400)
-      .json({ message: 'Something went wrong.' });
+    return res.status(400).json({ message: "Something went wrong." });
   }
 });
 
-app.post('/api/signup', async (req, res) => {
+app.post("/api/signup", async (req, res) => {
   try {
     const { email, firstName, lastName } = req.body;
 
-    const hashedPassword = await hashPassword(
-      req.body.password
-    );
+    const hashedPassword = await hashPassword(req.body.password);
 
     const userData = {
       email: email.toLowerCase(),
       firstName,
       lastName,
       password: hashedPassword,
-      role: 'admin'
+      role: "admin"
     };
 
     const existingEmail = await User.findOne({
@@ -90,9 +107,7 @@ app.post('/api/signup', async (req, res) => {
     }).lean();
 
     if (existingEmail) {
-      return res
-        .status(400)
-        .json({ message: 'Email already exists' });
+      return res.status(400).json({ message: "Email already exists" });
     }
 
     const newUser = new User(userData);
@@ -103,50 +118,86 @@ app.post('/api/signup', async (req, res) => {
       const decodedToken = jwtDecode(token);
       const expiresAt = decodedToken.exp;
 
-      const {
-        firstName,
-        lastName,
-        email,
-        role
-      } = savedUser;
+      const { firstName, lastName, email, role, _id } = savedUser;
 
       const userInfo = {
+        _id,
         firstName,
         lastName,
         email,
         role
       };
 
+      const refreshToken = await createRefreshToken(userInfo);
+
+      res.cookie("refreshToken", refreshToken, {
+        httpOnly: true
+      });
+
       return res.json({
-        message: 'User created!',
+        message: "User created!",
         token,
         userInfo,
         expiresAt
       });
     } else {
       return res.status(400).json({
-        message: 'There was a problem creating your account'
+        message: "There was a problem creating your account"
       });
     }
   } catch (err) {
     return res.status(400).json({
-      message: 'There was a problem creating your account'
+      message: "There was a problem creating your account"
     });
+  }
+});
+
+app.get("/api/token/refresh", async (req, res) => {
+  try {
+    const { refreshToken } = req.cookies;
+
+    if (!refreshToken) {
+      return res.status(400).json({
+        message: "No refresh token found"
+      });
+    }
+
+    const tokenResult = await Token.findOne({ refreshToken });
+
+    if (!tokenResult) {
+      return res.status(400).json({
+        message: "Invalid refresh token"
+      });
+    }
+
+    const user = await User.findOne({
+      _id: tokenResult.userId
+    }).lean();
+
+    if (!user) {
+      return res.status(400).json({
+        message: "Invalid refresh token"
+      });
+    }
+
+    const token = createToken(user);
+
+    res.json({ token });
+  } catch (err) {
+    return res.status(400).json({ message: "Something went wrong." });
   }
 });
 
 const attachUser = (req, res, next) => {
   const token = req.headers.authorization;
   if (!token) {
-    return res
-      .status(401)
-      .json({ message: 'Authentication invalid' });
+    return res.status(401).json({ message: "Authentication invalid" });
   }
   const decodedToken = jwtDecode(token.slice(7));
 
   if (!decodedToken) {
     return res.status(401).json({
-      message: 'There was a problem authorizing the request'
+      message: "There was a problem authorizing the request"
     });
   } else {
     req.user = decodedToken;
@@ -158,145 +209,129 @@ app.use(attachUser);
 
 const requireAuth = jwt({
   secret: process.env.JWT_SECRET,
-  audience: 'api.orbit',
-  issuer: 'api.orbit'
+  audience: "api.orbit",
+  issuer: "api.orbit"
 });
 
 const requireAdmin = (req, res, next) => {
   const { role } = req.user;
-  if (role !== 'admin') {
-    return res
-      .status(401)
-      .json({ message: 'Insufficient role' });
+  if (role !== "admin") {
+    return res.status(401).json({ message: "Insufficient role" });
   }
   next();
 };
 
-app.get('/api/dashboard-data', requireAuth, (req, res) =>
+app.get("/api/dashboard-data", requireAuth, (req, res) =>
   res.json(dashboardData)
 );
 
-app.patch('/api/user-role', async (req, res) => {
+app.patch("/api/user-role", async (req, res) => {
   try {
     const { role } = req.body;
-    const allowedRoles = ['user', 'admin'];
+    const allowedRoles = ["user", "admin"];
 
     if (!allowedRoles.includes(role)) {
-      return res
-        .status(400)
-        .json({ message: 'Role not allowed' });
+      return res.status(400).json({ message: "Role not allowed" });
     }
-    await User.findOneAndUpdate(
-      { _id: req.user.sub },
-      { role }
-    );
+    await User.findOneAndUpdate({ _id: req.user.sub }, { role });
     res.json({
       message:
-        'User role updated. You must log in again for the changes to take effect.'
+        "User role updated. You must log in again for the changes to take effect."
     });
   } catch (err) {
     return res.status(400).json({ error: err });
   }
 });
 
-app.get(
-  '/api/inventory',
-  requireAuth,
-  requireAdmin,
-  async (req, res) => {
-    try {
-      const user = req.user.sub;
-      const inventoryItems = await InventoryItem.find({
-        user
-      });
-      res.json(inventoryItems);
-    } catch (err) {
-      return res.status(400).json({ error: err });
-    }
+app.get("/api/inventory", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const user = req.user.sub;
+    const inventoryItems = await InventoryItem.find({
+      user
+    });
+    res.json(inventoryItems);
+  } catch (err) {
+    return res.status(400).json({ error: err });
   }
-);
+});
 
-app.post(
-  '/api/inventory',
-  requireAuth,
-  requireAdmin,
-  async (req, res) => {
-    try {
-      const userId = req.user.sub;
-      const input = Object.assign({}, req.body, {
-        user: userId
-      });
-      const inventoryItem = new InventoryItem(input);
-      await inventoryItem.save();
-      res.status(201).json({
-        message: 'Inventory item created!',
-        inventoryItem
-      });
-    } catch (err) {
-      return res.status(400).json({
-        message: 'There was a problem creating the item'
-      });
-    }
+app.post("/api/inventory", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const userId = req.user.sub;
+    const input = Object.assign({}, req.body, {
+      user: userId
+    });
+    const inventoryItem = new InventoryItem(input);
+    await inventoryItem.save();
+    res.status(201).json({
+      message: "Inventory item created!",
+      inventoryItem
+    });
+  } catch (err) {
+    return res.status(400).json({
+      message: "There was a problem creating the item"
+    });
   }
-);
+});
 
 app.delete(
-  '/api/inventory/:id',
+  "/api/inventory/:id",
   requireAuth,
   requireAdmin,
   async (req, res) => {
     try {
-      const deletedItem = await InventoryItem.findOneAndDelete(
-        { _id: req.params.id, user: req.user.sub }
-      );
+      const deletedItem = await InventoryItem.findOneAndDelete({
+        _id: req.params.id,
+        user: req.user.sub
+      });
       res.status(201).json({
-        message: 'Inventory item deleted!',
+        message: "Inventory item deleted!",
         deletedItem
       });
     } catch (err) {
       return res.status(400).json({
-        message: 'There was a problem deleting the item.'
+        message: "There was a problem deleting the item."
       });
     }
   }
 );
 
-app.get('/api/users', requireAuth, async (req, res) => {
+app.get("/api/users", requireAuth, async (req, res) => {
   try {
     const users = await User.find()
       .lean()
-      .select('_id firstName lastName avatar bio');
+      .select("_id firstName lastName avatar bio");
 
     res.json({
       users
     });
   } catch (err) {
     return res.status(400).json({
-      message: 'There was a problem getting the users'
+      message: "There was a problem getting the users"
     });
   }
 });
 
-app.get('/api/bio', requireAuth, async (req, res) => {
+app.get("/api/bio", requireAuth, async (req, res) => {
   try {
     const { sub } = req.user;
     const user = await User.findOne({
       _id: sub
     })
       .lean()
-      .select('bio');
+      .select("bio");
 
     res.json({
       bio: user.bio
     });
   } catch (err) {
     return res.status(400).json({
-      message: 'There was a problem updating your bio'
+      message: "There was a problem updating your bio"
     });
   }
 });
 
-app.patch('/api/bio', requireAuth, async (req, res) => {
+app.patch("/api/bio", requireAuth, async (req, res) => {
   try {
     const { sub } = req.user;
     const { bio } = req.body;
@@ -313,12 +348,12 @@ app.patch('/api/bio', requireAuth, async (req, res) => {
     );
 
     res.json({
-      message: 'Bio updated!',
+      message: "Bio updated!",
       bio: updatedUser.bio
     });
   } catch (err) {
     return res.status(400).json({
-      message: 'There was a problem updating your bio'
+      message: "There was a problem updating your bio"
     });
   }
 });
@@ -332,10 +367,10 @@ async function connect() {
       useFindAndModify: false
     });
   } catch (err) {
-    console.log('Mongoose error', err);
+    console.log("Mongoose error", err);
   }
   app.listen(3001);
-  console.log('API listening on localhost:3001');
+  console.log("API listening on localhost:3001");
 }
 
 connect();
