@@ -7,10 +7,10 @@ import Hyperlink from '../components/common/Hyperlink';
 import Label from '../components/common/Label';
 import FormInput from '../components/FormInput';
 import { AuthContext } from '../context/AuthContext';
+import { FetchContext } from '../context/FetchContext';
 import GradientBar from './../components/common/GradientBar';
 import FormError from './../components/FormError';
 import FormSuccess from './../components/FormSuccess';
-import { publicFetch } from './../util/fetch';
 import logo from './../images/logo.png';
 import { Redirect } from 'react-router-dom';
 
@@ -27,6 +27,7 @@ const SignupSchema = Yup.object().shape({
 
 const Signup = () => {
   const authContext = useContext(AuthContext);
+  const {publicFetch} = useContext(FetchContext);
   const [signupSuccess, setSignupSuccess] = useState();
   const [signupError, setSignupError] = useState();
   const [redirectOnLogin, setRedirectOnLogin] = useState(

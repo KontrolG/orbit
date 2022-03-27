@@ -14,12 +14,12 @@ const sanitizeBody = (object) => {
 
   return sanitizedObject;
 };
+const getResponseData = (response) => response.data;
 
 const publicFetch = axios.create({
   baseURL: process.env.REACT_APP_API_URL
 });
 
-const getResponseData = (response) => response.data;
 
 export const signUp = ({ email, ...signUpData }) =>
   publicFetch({

@@ -2,36 +2,16 @@ require("dotenv").config();
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
-const jwt = require("express-jwt");
-const jwtDecode = require("jwt-decode");
 const mongoose = require("mongoose");
 
 const dashboardData = require("./data/dashboard");
 const User = require("./data/User");
 const InventoryItem = require("./data/InventoryItem");
-const Token = require("./data/Token");
-
-const {
-  createToken,
-  hashPassword,
-  verifyPassword,
-  generateRefreshToken
-} = require("./util");
+const { hashPassword, verifyPassword } = require("./util");
 const cookieParser = require("cookie-parser");
-
-async function createRefreshToken(user) {
-  try {
-    const refreshToken = generateRefreshToken();
-    const storedRefreshToken = new Token({
-      refreshToken,
-      userId: user._id
-    });
-    await storedRefreshToken.save();
-    return refreshToken;
-  } catch (error) {
-    throw error;
-  }
-}
+const session = require("express-session");
+const FileStore = require("session-file-store")(session);
+const csrf = require("csurf");
 
 const app = express();
 
@@ -39,6 +19,32 @@ app.use(cors());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(cookieParser());
+app.use(csrf({ cookie: true }));
+app.use(
+  session({
+    store: new FileStore(),
+    secret: process.env.SESSION_SECRET,
+    saveUninitialized: false,
+    resave: false,
+    rolling: true,
+    cookie: {
+      sameSite: true,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: parseInt(process.env.SESSION_MAX_AGE, 10)
+    }
+  })
+);
+
+app.use((req, res, next) => {
+  console.log(req.session);
+  next();
+});
+
+app.get("/api/csrf-token", (req, res, next) => {
+  const csrfToken = req.csrfToken();
+  res.json({ csrfToken });
+});
 
 app.post("/api/authenticate", async (req, res) => {
   try {
@@ -56,32 +62,20 @@ app.post("/api/authenticate", async (req, res) => {
 
     const passwordValid = await verifyPassword(password, user.password);
 
-    if (passwordValid) {
-      const { password, bio, ...rest } = user;
-      const userInfo = Object.assign({}, { ...rest });
-
-      const token = createToken(userInfo);
-
-      const decodedToken = jwtDecode(token);
-      const expiresAt = decodedToken.exp;
-
-      const refreshToken = await createRefreshToken(user);
-
-      res.cookie("refreshToken", refreshToken, {
-        httpOnly: true
-      });
-
-      res.json({
-        message: "Authentication successful!",
-        token,
-        userInfo,
-        expiresAt
-      });
-    } else {
-      res.status(403).json({
+    if (!passwordValid) {
+      return res.status(403).json({
         message: "Wrong email or password."
       });
     }
+
+    const { password: userPassword, bio, ...rest } = user;
+    const userInfo = Object.assign({}, { ...rest });
+    req.session.user = userInfo;
+
+    res.json({
+      message: "Authentication successful!",
+      userInfo
+    });
   } catch (err) {
     console.log(err);
     return res.status(400).json({ message: "Something went wrong." });
@@ -114,10 +108,6 @@ app.post("/api/signup", async (req, res) => {
     const savedUser = await newUser.save();
 
     if (savedUser) {
-      const token = createToken(savedUser);
-      const decodedToken = jwtDecode(token);
-      const expiresAt = decodedToken.exp;
-
       const { firstName, lastName, email, role, _id } = savedUser;
 
       const userInfo = {
@@ -128,17 +118,11 @@ app.post("/api/signup", async (req, res) => {
         role
       };
 
-      const refreshToken = await createRefreshToken(userInfo);
-
-      res.cookie("refreshToken", refreshToken, {
-        httpOnly: true
-      });
+      req.session.user = userInfo;
 
       return res.json({
         message: "User created!",
-        token,
-        userInfo,
-        expiresAt
+        userInfo
       });
     } else {
       return res.status(400).json({
@@ -152,74 +136,43 @@ app.post("/api/signup", async (req, res) => {
   }
 });
 
-app.get("/api/token/refresh", async (req, res) => {
-  try {
-    const { refreshToken } = req.cookies;
-
-    if (!refreshToken) {
-      return res.status(400).json({
-        message: "No refresh token found"
-      });
-    }
-
-    const tokenResult = await Token.findOne({ refreshToken });
-
-    if (!tokenResult) {
-      return res.status(400).json({
-        message: "Invalid refresh token"
-      });
-    }
-
-    const user = await User.findOne({
-      _id: tokenResult.userId
-    }).lean();
-
-    if (!user) {
-      return res.status(400).json({
-        message: "Invalid refresh token"
-      });
-    }
-
-    const token = createToken(user);
-
-    res.json({ token });
-  } catch (err) {
-    return res.status(400).json({ message: "Something went wrong." });
+const requireAuth = (req, res, next) => {
+  if (!req.session.user || !req.session.user._id) {
+    return res.status(401).json({ message: "Unauthenticated" });
   }
-});
-
-const attachUser = (req, res, next) => {
-  const token = req.headers.authorization;
-  if (!token) {
-    return res.status(401).json({ message: "Authentication invalid" });
-  }
-  const decodedToken = jwtDecode(token.slice(7));
-
-  if (!decodedToken) {
-    return res.status(401).json({
-      message: "There was a problem authorizing the request"
-    });
-  } else {
-    req.user = decodedToken;
-    next();
-  }
+  next();
 };
 
-app.use(attachUser);
+app.get("/api/user-info", (req, res) => {
+  const userInfo = req.session.user;
 
-const requireAuth = jwt({
-  secret: process.env.JWT_SECRET,
-  audience: "api.orbit",
-  issuer: "api.orbit"
+  if (!userInfo) {
+    return res.json({ message: "Unauthenticated", userInfo: null });
+  }
+
+  setTimeout(() => {
+    res.json({ userInfo });
+  }, 2000);
 });
 
 const requireAdmin = (req, res, next) => {
-  const { role } = req.user;
+  const { role } = req.session.user || {};
   if (role !== "admin") {
     return res.status(401).json({ message: "Insufficient role" });
   }
   next();
 };
+
+app.post("/api/logout", (req, res) => {
+  req.session.destroy((error) => {
+    if (error) {
+      return res.status(400).json({
+        message: `Something went wrong. Error: ${error.toString()}`
+      });
+    }
+    return res.json({ message: "Logout successful" });
+  });
+});
 
 app.get("/api/dashboard-data", requireAuth, (req, res) =>
   res.json(dashboardData)
@@ -233,7 +186,7 @@ app.patch("/api/user-role", async (req, res) => {
     if (!allowedRoles.includes(role)) {
       return res.status(400).json({ message: "Role not allowed" });
     }
-    await User.findOneAndUpdate({ _id: req.user.sub }, { role });
+    await User.findOneAndUpdate({ _id: req.session.user._id }, { role });
     res.json({
       message:
         "User role updated. You must log in again for the changes to take effect."
@@ -245,7 +198,7 @@ app.patch("/api/user-role", async (req, res) => {
 
 app.get("/api/inventory", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const user = req.user.sub;
+    const user = req.session.user._id;
     const inventoryItems = await InventoryItem.find({
       user
     });
@@ -257,7 +210,7 @@ app.get("/api/inventory", requireAuth, requireAdmin, async (req, res) => {
 
 app.post("/api/inventory", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const userId = req.user.sub;
+    const userId = req.session.user._id;
     const input = Object.assign({}, req.body, {
       user: userId
     });
@@ -282,7 +235,7 @@ app.delete(
     try {
       const deletedItem = await InventoryItem.findOneAndDelete({
         _id: req.params.id,
-        user: req.user.sub
+        user: req.session.user._id
       });
       res.status(201).json({
         message: "Inventory item deleted!",
@@ -314,9 +267,9 @@ app.get("/api/users", requireAuth, async (req, res) => {
 
 app.get("/api/bio", requireAuth, async (req, res) => {
   try {
-    const { sub } = req.user;
+    const _id = req.session.user._id;
     const user = await User.findOne({
-      _id: sub
+      _id
     })
       .lean()
       .select("bio");
@@ -333,11 +286,11 @@ app.get("/api/bio", requireAuth, async (req, res) => {
 
 app.patch("/api/bio", requireAuth, async (req, res) => {
   try {
-    const { sub } = req.user;
+    const _id = req.session.user._id;
     const { bio } = req.body;
     const updatedUser = await User.findOneAndUpdate(
       {
-        _id: sub
+        _id
       },
       {
         bio

@@ -1,71 +1,55 @@
-import React, { createContext, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { useHistory } from "react-router-dom";
-import { getNewToken } from "../util/publicOrbitApi";
+import { FetchContext } from "./FetchContext";
 
 const AuthContext = createContext();
 const { Provider } = AuthContext;
 
 const AuthProvider = ({ children }) => {
   const history = useHistory();
-
-  const token = localStorage.getItem("token");
-  const userInfo = localStorage.getItem("userInfo");
-  const expiresAt = localStorage.getItem("expiresAt");
+  const { publicFetch, authAxios } = useContext(FetchContext);
 
   const [authState, setAuthState] = useState({
-    token,
-    expiresAt,
-    userInfo: userInfo ? JSON.parse(userInfo) : {}
+    isAuthenticated: false,
+    isLoading: true,
+    userInfo: null
   });
 
-  const setAuthInfo = ({ token, userInfo, expiresAt }) => {
-    localStorage.setItem("token", token);
-    localStorage.setItem("userInfo", JSON.stringify(userInfo));
-    localStorage.setItem("expiresAt", expiresAt);
-
+  const setAuthInfo = ({ userInfo }) => {
     setAuthState({
-      token,
       userInfo,
-      expiresAt
+      isLoading: false,
+      isAuthenticated: Boolean(userInfo && userInfo?._id)
     });
   };
 
-  const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("userInfo");
-    localStorage.removeItem("expiresAt");
-    setAuthState({});
-    history.push("/login");
-  };
-
-  const isAuthenticated = () => {
-    if (!authState.token || !authState.expiresAt) {
-      return false;
+  const logout = async () => {
+    try {
+      await authAxios.post("/logout");
+      setAuthInfo({ userInfo: null });
+      history.push("/login");
+    } catch (error) {
+      console.error(error);
     }
-    return new Date().getTime() / 1000 < authState.expiresAt;
   };
 
   const isAdmin = () => {
-    return authState.userInfo.role === "admin";
+    return authState.userInfo?.role === "admin";
   };
 
-  function getAccessToken() {
-    return localStorage.getItem("token");
-  }
-
-  async function refreshAuthHeaders(failedRequest) {
-    try {
-      const { token: newToken } = await getNewToken();
-      localStorage.setItem("token", newToken);
-      failedRequest.response.config.headers[
-        "Authorization"
-      ] = `Bearer ${newToken}`;
-      return Promise.resolve();
-    } catch (error) {
-      // Do stuff here
-      throw error;
+  useEffect(() => {
+    async function fetchUserInfo() {
+      try {
+        const response = await publicFetch.get("/user-info");
+        const userInfo = response.data?.userInfo;
+        setAuthInfo({ userInfo });
+      } catch (error) {
+        setAuthInfo({ userInfo: null });
+      }
     }
-  }
+
+    fetchUserInfo();
+  }, []);
 
   return (
     <Provider
@@ -73,10 +57,8 @@ const AuthProvider = ({ children }) => {
         authState,
         setAuthState: (authInfo) => setAuthInfo(authInfo),
         logout,
-        isAuthenticated,
-        isAdmin,
-        refreshAuthHeaders,
-        getAccessToken
+        isAuthenticated: authState.isAuthenticated,
+        isAdmin
       }}
     >
       {children}

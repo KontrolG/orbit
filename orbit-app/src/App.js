@@ -1,30 +1,28 @@
-import React, { lazy, Suspense, useContext } from 'react';
+import React, { lazy, Suspense, useContext } from "react";
 import {
   BrowserRouter as Router,
   Route,
   Switch,
   Redirect
-} from 'react-router-dom';
-import './App.css';
+} from "react-router-dom";
+import "./App.css";
 
-import {
-  AuthProvider,
-  AuthContext
-} from './context/AuthContext';
-import { FetchProvider } from './context/FetchContext';
+import { AuthProvider, AuthContext } from "./context/AuthContext";
+import { FetchProvider } from "./context/FetchContext";
 
-import AppShell from './AppShell';
+import AppShell from "./AppShell";
 
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
-import FourOFour from './pages/FourOFour';
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import FourOFour from "./pages/FourOFour";
+import logo from "./images/logo.png";
 
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const Inventory = lazy(() => import('./pages/Inventory'));
-const Account = lazy(() => import('./pages/Account'));
-const Settings = lazy(() => import('./pages/Settings'));
-const Users = lazy(() => import('./pages/Users'));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Inventory = lazy(() => import("./pages/Inventory"));
+const Account = lazy(() => import("./pages/Account"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Users = lazy(() => import("./pages/Users"));
 
 const LoadingFallback = () => (
   <AppShell>
@@ -55,7 +53,7 @@ const AuthenticatedRoute = ({ children, ...rest }) => {
     <Route
       {...rest}
       render={() =>
-        auth.isAuthenticated() ? (
+        auth.isAuthenticated ? (
           <AppShell>{children}</AppShell>
         ) : (
           <Redirect to="/" />
@@ -71,7 +69,7 @@ const AdminRoute = ({ children, ...rest }) => {
     <Route
       {...rest}
       render={() =>
-        auth.isAuthenticated() && auth.isAdmin() ? (
+        auth.isAuthenticated && auth.isAdmin() ? (
           <AppShell>{children}</AppShell>
         ) : (
           <Redirect to="/" />
@@ -81,7 +79,21 @@ const AdminRoute = ({ children, ...rest }) => {
   );
 };
 
+function LoadingAuthenticationFallback() {
+  return (
+    <div className="h-screen flex justify-center items-center">
+      <img src={logo} alt="Logo" width={160} height={54} />
+    </div>
+  );
+}
+
 const AppRoutes = () => {
+  const { authState } = useContext(AuthContext);
+
+  if (authState.isLoading) {
+    return <LoadingAuthenticationFallback />;
+  }
+
   return (
     <>
       <Suspense fallback={<LoadingFallback />}>
@@ -111,13 +123,13 @@ const AppRoutes = () => {
 function App() {
   return (
     <Router>
-      <AuthProvider>
-        <FetchProvider>
+      <FetchProvider>
+        <AuthProvider>
           <div className="bg-gray-100">
             <AppRoutes />
           </div>
-        </FetchProvider>
-      </AuthProvider>
+        </AuthProvider>
+      </FetchProvider>
     </Router>
   );
 }

@@ -74,7 +74,8 @@ const NavItemContainer = ({ children }) => (
 
 const Sidebar = () => {
   const auth = useContext(AuthContext);
-  const { role } = auth.authState.userInfo;
+  const role = auth.authState.userInfo?.role;
+
   return (
     <section className="h-screen">
       <div className="w-16 sm:w-24 m-auto">

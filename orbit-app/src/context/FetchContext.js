@@ -1,30 +1,16 @@
-import React, { createContext, useContext } from "react";
+import React, { createContext, useEffect } from "react";
 import axios from "axios";
-import { AuthContext } from "./AuthContext";
-import createAuthRefreshInterceptor from "axios-auth-refresh";
 
 const FetchContext = createContext();
 const { Provider } = FetchContext;
 
 const FetchProvider = ({ children }) => {
-  const authContext = useContext(AuthContext);
-
   const authAxios = axios.create({
     baseURL: process.env.REACT_APP_API_URL
   });
 
-  authAxios.interceptors.request.use(
-    (config) => {
-      config.headers.Authorization = `Bearer ${authContext.getAccessToken()}`;
-      return config;
-    },
-    (error) => {
-      return Promise.reject(error);
-    }
-  );
-
-  createAuthRefreshInterceptor(authAxios, authContext.refreshAuthHeaders, {
-    pauseInstanceWhileRefreshing: true
+  const publicFetch = axios.create({
+    baseURL: process.env.REACT_APP_API_URL
   });
 
   authAxios.interceptors.response.use(
@@ -40,10 +26,27 @@ const FetchProvider = ({ children }) => {
     }
   );
 
+  useEffect(() => {
+    async function fetchCsrfToken() {
+      try {
+        const {
+          data: { csrfToken }
+        } = await publicFetch.get("/csrf-token");
+        publicFetch.defaults.headers.common["X-CSRF-Token"] = csrfToken;
+        authAxios.defaults.headers.common["X-CSRF-Token"] = csrfToken;
+      } catch (error) {
+        console.log(error);
+      }
+    }
+
+    fetchCsrfToken();
+  }, []);
+
   return (
     <Provider
       value={{
-        authAxios
+        authAxios,
+        publicFetch
       }}
     >
       {children}
