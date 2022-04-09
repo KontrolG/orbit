@@ -1,5 +1,7 @@
-import React, { useContext } from 'react';
-import { AuthContext } from './../context/AuthContext';
+import { useAuth0 } from "@auth0/auth0-react";
+import React, { useContext } from "react";
+import { FetchContext } from "../context/FetchContext";
+import jwt from "jsonwebtoken";
 
 const AuthStateItem = ({ title, value }) => (
   <div className="text-sm">
@@ -11,24 +13,24 @@ const AuthStateItem = ({ title, value }) => (
 );
 
 const AuthDebugger = () => {
-  const authContext = useContext(AuthContext);
-  const {
-    token,
-    expiresAt,
-    userInfo
-  } = authContext.authState;
+  const { accessToken } = useContext(FetchContext);
+  const { user } = useAuth0();
+
   return (
     <section className="rounded-lg shadow bg-white p-4">
       <div className="mb-2">
-        <AuthStateItem title="Token" value={token} />
+        <AuthStateItem title="Token" value={accessToken} />
       </div>
       <div className="mb-2">
-        <AuthStateItem title="Expiry" value={expiresAt} />
+        <AuthStateItem
+          title="Token Info"
+          value={JSON.stringify(jwt.decode(accessToken), null, 2)}
+        />
       </div>
       <div className="mb-2">
         <AuthStateItem
           title="User Info"
-          value={JSON.stringify(userInfo, null, 2)}
+          value={JSON.stringify(user, null, 2)}
         />
       </div>
     </section>

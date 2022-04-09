@@ -1,12 +1,13 @@
 import React, { useContext } from "react";
 import { Link } from "react-router-dom";
-import { AuthContext } from "./../context/AuthContext";
 import GradientLink from "../components/common/GradientLink";
 import GradientBar from "./../components/common/GradientBar";
+import GradientButton from "./../components/common/GradientButton";
 import logo from "./../images/logo.png";
+import { useAuth0 } from "@auth0/auth0-react";
 
 const Home = () => {
-  const auth = useContext(AuthContext);
+  const { isAuthenticated, loginWithRedirect } = useAuth0();
 
   return (
     <>
@@ -18,10 +19,7 @@ const Home = () => {
             <Link to="/signup" className="text-blue-700 mr-6">
               Sign Up
             </Link>
-            <GradientLink
-              to={auth.isAuthenticated ? "/dashboard" : "/login"}
-              text="Log In"
-            />
+            <GradientButton onClick={loginWithRedirect} text="Log In" />
           </div>
         </div>
       </div>
@@ -45,7 +43,7 @@ const Home = () => {
               <GradientLink
                 text="Get Started"
                 size="lg"
-                to={auth.isAuthenticated ? "/dashboard" : "/login"}
+                to={isAuthenticated ? "/dashboard" : "/login"}
               />
             </div>
           </div>

@@ -7,16 +7,14 @@ import {
 } from "react-router-dom";
 import "./App.css";
 
-import { AuthProvider, AuthContext } from "./context/AuthContext";
 import { FetchProvider } from "./context/FetchContext";
 
 import AppShell from "./AppShell";
 
 import Home from "./pages/Home";
-import Login from "./pages/Login";
-import Signup from "./pages/Signup";
 import FourOFour from "./pages/FourOFour";
 import logo from "./images/logo.png";
+import { Auth0Provider, useAuth0 } from "@auth0/auth0-react";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Inventory = lazy(() => import("./pages/Inventory"));
@@ -32,12 +30,6 @@ const LoadingFallback = () => (
 
 const UnauthenticatedRoutes = () => (
   <Switch>
-    <Route path="/login">
-      <Login />
-    </Route>
-    <Route path="/signup">
-      <Signup />
-    </Route>
     <Route exact path="/">
       <Home />
     </Route>
@@ -48,32 +40,28 @@ const UnauthenticatedRoutes = () => (
 );
 
 const AuthenticatedRoute = ({ children, ...rest }) => {
-  const auth = useContext(AuthContext);
+  const { isAuthenticated } = useAuth0();
+
   return (
     <Route
       {...rest}
       render={() =>
-        auth.isAuthenticated ? (
-          <AppShell>{children}</AppShell>
-        ) : (
-          <Redirect to="/" />
-        )
+        isAuthenticated ? <AppShell>{children}</AppShell> : <Redirect to="/" />
       }
     ></Route>
   );
 };
 
 const AdminRoute = ({ children, ...rest }) => {
-  const auth = useContext(AuthContext);
+  const { isAuthenticated } = useAuth0();
+
+  // TODO: Add check for is admin.
+
   return (
     <Route
       {...rest}
       render={() =>
-        auth.isAuthenticated && auth.isAdmin() ? (
-          <AppShell>{children}</AppShell>
-        ) : (
-          <Redirect to="/" />
-        )
+        isAuthenticated ? <AppShell>{children}</AppShell> : <Redirect to="/" />
       }
     ></Route>
   );
@@ -88,9 +76,9 @@ function LoadingAuthenticationFallback() {
 }
 
 const AppRoutes = () => {
-  const { authState } = useContext(AuthContext);
+  const { isLoading } = useAuth0();
 
-  if (authState.isLoading) {
+  if (isLoading) {
     return <LoadingAuthenticationFallback />;
   }
 
@@ -120,17 +108,36 @@ const AppRoutes = () => {
   );
 };
 
+const permissions = [
+  "delete:inventory",
+  "edit:inventory",
+  "edit:user",
+  "read:dashboard",
+  "read:inventory",
+  "read:user",
+  "read:users",
+  "write:inventory"
+];
+
+const auth0Scope = permissions.join(" ");
+
 function App() {
   return (
-    <Router>
-      <FetchProvider>
-        <AuthProvider>
+    <Auth0Provider
+      domain={process.env.REACT_APP_AUTH0_DOMAIN}
+      clientId={process.env.REACT_APP_AUTH0_CLIENT_ID}
+      redirectUri={`${window.location.origin}/dashboard`}
+      audience={process.env.REACT_APP_AUTH0_AUDIENCE}
+      scope={auth0Scope}
+    >
+      <Router>
+        <FetchProvider>
           <div className="bg-gray-100">
             <AppRoutes />
           </div>
-        </AuthProvider>
-      </FetchProvider>
-    </Router>
+        </FetchProvider>
+      </Router>
+    </Auth0Provider>
   );
 }
 
