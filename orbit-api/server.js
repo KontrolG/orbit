@@ -1,50 +1,49 @@
-require('dotenv').config();
-const jwtDecode = require('jwt-decode');
-const mongoose = require('mongoose');
-const dashboardData = require('./data/dashboard');
-const User = require('./data/User');
-const InventoryItem = require('./data/InventoryItem');
+require("dotenv").config();
+const jwtDecode = require("jwt-decode");
+const mongoose = require("mongoose");
+const dashboardData = require("./data/dashboard");
+const User = require("./data/User");
+const InventoryItem = require("./data/InventoryItem");
 
 const {
   ApolloServer,
   gql,
   ApolloError,
   UserInputError
-} = require('apollo-server');
+} = require("apollo-server");
 
-const {
-  createToken,
-  hashPassword,
-  verifyPassword
-} = require('./util');
+const { createToken, hashPassword, verifyPassword } = require("./util");
+
+const jwt = require("jsonwebtoken");
 
 const resolvers = {
   Query: {
-    dashboardData: () => {
+    dashboardData: (parent, args, context) => {
+      console.log(context);
       return dashboardData;
     },
     users: async () => {
       try {
         return await User.find()
           .lean()
-          .select('_id firstName lastName avatar bio');
+          .select("_id firstName lastName avatar bio");
       } catch (err) {
         return err;
       }
     },
     user: async () => {
       try {
-        const user = '507f1f77bcf86cd799439011';
+        const user = "507f1f77bcf86cd799439011";
         return await User.findOne({ _id: user })
           .lean()
-          .select('_id firstName lastName role avatar bio');
+          .select("_id firstName lastName role avatar bio");
       } catch (err) {
         return err;
       }
     },
     inventoryItems: async () => {
       try {
-        const user = '507f1f77bcf86cd799439011';
+        const user = "507f1f77bcf86cd799439011";
         return await InventoryItem.find({
           user: user
         });
@@ -54,12 +53,12 @@ const resolvers = {
     },
     userBio: async () => {
       try {
-        const user = '507f1f77bcf86cd799439011';
+        const user = "507f1f77bcf86cd799439011";
         const foundUser = await User.findOne({
           _id: user
         })
           .lean()
-          .select('bio');
+          .select("bio");
 
         return { bio: foundUser.bio };
       } catch (err) {
@@ -77,15 +76,10 @@ const resolvers = {
         }).lean();
 
         if (!user) {
-          throw new UserInputError(
-            'Wrong email or password'
-          );
+          throw new UserInputError("Wrong email or password");
         }
 
-        const passwordValid = await verifyPassword(
-          password,
-          user.password
-        );
+        const passwordValid = await verifyPassword(password, user.password);
 
         if (passwordValid) {
           const { password, bio, ...rest } = user;
@@ -97,15 +91,13 @@ const resolvers = {
           const expiresAt = decodedToken.exp;
 
           return {
-            message: 'Authentication successful!',
+            message: "Authentication successful!",
             token,
             userInfo,
             expiresAt
           };
         } else {
-          throw new UserInputError(
-            'Wrong email or password'
-          );
+          throw new UserInputError("Wrong email or password");
         }
       } catch (err) {
         return err;
@@ -113,12 +105,7 @@ const resolvers = {
     },
     signup: async (parent, args) => {
       try {
-        const {
-          firstName,
-          lastName,
-          email,
-          password
-        } = args;
+        const { firstName, lastName, email, password } = args;
 
         const hashedPassword = await hashPassword(password);
 
@@ -127,7 +114,7 @@ const resolvers = {
           firstName,
           lastName,
           password: hashedPassword,
-          role: 'admin'
+          role: "admin"
         };
 
         const existingEmail = await User.findOne({
@@ -135,7 +122,7 @@ const resolvers = {
         }).lean();
 
         if (existingEmail) {
-          throw new ApolloError('Email already exists');
+          throw new ApolloError("Email already exists");
         }
 
         const newUser = new User(userData);
@@ -146,13 +133,7 @@ const resolvers = {
           const decodedToken = jwtDecode(token);
           const expiresAt = decodedToken.exp;
 
-          const {
-            _id,
-            firstName,
-            lastName,
-            email,
-            role
-          } = savedUser;
+          const { _id, firstName, lastName, email, role } = savedUser;
 
           const userInfo = {
             _id,
@@ -163,15 +144,13 @@ const resolvers = {
           };
 
           return {
-            message: 'User created!',
+            message: "User created!",
             token,
             userInfo,
             expiresAt
           };
         } else {
-          throw new ApolloError(
-            'There was a problem creating your account'
-          );
+          throw new ApolloError("There was a problem creating your account");
         }
       } catch (err) {
         return err;
@@ -179,14 +158,14 @@ const resolvers = {
     },
     addInventoryItem: async (parent, args) => {
       try {
-        const user = '507f1f77bcf86cd799439011';
+        const user = "507f1f77bcf86cd799439011";
         const input = Object.assign({}, args, {
           user: user
         });
         const inventoryItem = new InventoryItem(input);
         const inventoryItemResult = await inventoryItem.save();
         return {
-          message: 'Invetory item created!',
+          message: "Invetory item created!",
           inventoryItem: inventoryItemResult
         };
       } catch (err) {
@@ -195,13 +174,14 @@ const resolvers = {
     },
     deleteInventoryItem: async (parent, args) => {
       try {
-        const user = '507f1f77bcf86cd799439011';
+        const user = "507f1f77bcf86cd799439011";
         const { id } = args;
-        const deletedItem = await InventoryItem.findOneAndDelete(
-          { _id: id, user: user }
-        );
+        const deletedItem = await InventoryItem.findOneAndDelete({
+          _id: id,
+          user: user
+        });
         return {
-          message: 'Inventory item deleted!',
+          message: "Inventory item deleted!",
           inventoryItem: deletedItem
         };
       } catch (err) {
@@ -210,12 +190,12 @@ const resolvers = {
     },
     updateUserRole: async (parent, args) => {
       try {
-        const user = '507f1f77bcf86cd799439011';
+        const user = "507f1f77bcf86cd799439011";
         const { role } = args;
-        const allowedRoles = ['user', 'admin'];
+        const allowedRoles = ["user", "admin"];
 
         if (!allowedRoles.includes(role)) {
-          throw new ApolloError('Invalid user role');
+          throw new ApolloError("Invalid user role");
         }
         const updatedUser = await User.findOneAndUpdate(
           { _id: user },
@@ -223,7 +203,7 @@ const resolvers = {
         );
         return {
           message:
-            'User role updated. You must log in again for the changes to take effect.',
+            "User role updated. You must log in again for the changes to take effect.",
           user: updatedUser
         };
       } catch (err) {
@@ -232,7 +212,7 @@ const resolvers = {
     },
     updateUserBio: async (parent, args) => {
       try {
-        const user = '507f1f77bcf86cd799439011';
+        const user = "507f1f77bcf86cd799439011";
         const { bio } = args;
         const updatedUser = await User.findOneAndUpdate(
           {
@@ -247,7 +227,7 @@ const resolvers = {
         );
 
         return {
-          message: 'Bio updated!',
+          message: "Bio updated!",
           userBio: {
             bio: updatedUser.bio
           }
@@ -326,10 +306,7 @@ const typeDefs = gql`
   }
 
   type Mutation {
-    login(
-      email: String!
-      password: String!
-    ): AuthenticationResult
+    login(email: String!, password: String!): AuthenticationResult
     signup(
       firstName: String!
       lastName: String!
@@ -349,7 +326,19 @@ const typeDefs = gql`
 
 const server = new ApolloServer({
   typeDefs,
-  resolvers
+  resolvers,
+  context({ req }) {
+    try {
+      const token = req && req.headers.authorization;
+      const user = token
+        ? jwt.verify(token.replace("Bearer ", ""), process.env.JWT_SECRET)
+        : null;
+
+      return { user };
+    } catch (error) {
+      return { user: null };
+    }
+  }
 });
 
 async function connect() {
@@ -361,7 +350,7 @@ async function connect() {
       useFindAndModify: false
     });
   } catch (err) {
-    console.log('Mongoose error', err);
+    console.log("Mongoose error", err);
   }
   server.listen(3001).then(({ url }) => {
     console.log(`🚀  Server ready at ${url}`);
