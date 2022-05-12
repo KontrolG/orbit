@@ -1,15 +1,12 @@
-import React, {
-  useContext,
-  useEffect,
-  useState
-} from 'react';
+import React from 'react';
+import { useMutation, useQuery } from '@apollo/react-hooks';
+import { gql } from 'apollo-boost';
 import PageTitle from '../components/common/PageTitle';
-import { FetchContext } from '../context/FetchContext';
-import { formatCurrency } from './../util';
-import InventoryItemForm from './../components/InventoryItemForm';
 import DangerButton from './../components/common/DangerButton';
 import FormError from './../components/FormError';
 import FormSuccess from './../components/FormSuccess';
+import InventoryItemForm from './../components/InventoryItemForm';
+import { formatCurrency } from './../util';
 
 const InventoryItemContainer = ({ children }) => (
   <div className="bg-white rounded shadow-md mb-4 p-4">
@@ -44,7 +41,15 @@ const InventoryItem = ({ item, onDelete }) => {
         <div className="self-end">
           <DangerButton
             text="Delete"
-            onClick={() => onDelete(item)}
+            onClick={() => {
+              if (
+                window.confirm(
+                  'Are you sure you want to delete this item?'
+                )
+              ) {
+                onDelete({ variables: { id: item._id } });
+              }
+            }}
           />
         </div>
       </div>
@@ -61,84 +66,121 @@ const NewInventoryItem = ({ onSubmit }) => {
   );
 };
 
+const INVENTORY_ITEMS = gql`
+  {
+    inventoryItems {
+      _id
+      name
+      itemNumber
+      unitPrice
+      image
+    }
+  }
+`;
+
+const ADD_INVENTORY_ITEM = gql`
+  mutation AddInventoryItem(
+    $name: String!
+    $itemNumber: String!
+    $unitPrice: Float!
+  ) {
+    addInventoryItem(
+      name: $name
+      itemNumber: $itemNumber
+      unitPrice: $unitPrice
+    ) {
+      message
+      inventoryItem {
+        _id
+        name
+        itemNumber
+        unitPrice
+        image
+      }
+    }
+  }
+`;
+
+const DELETE_INVENTORY_ITEM = gql`
+  mutation DeleteInventoryItem($id: ID!) {
+    deleteInventoryItem(id: $id) {
+      message
+      inventoryItem {
+        _id
+        name
+        itemNumber
+        unitPrice
+        image
+      }
+    }
+  }
+`;
+
 const Inventory = () => {
-  const fetchContext = useContext(FetchContext);
-  const [inventory, setInventory] = useState([]);
-  const [successMessage, setSuccessMessage] = useState();
-  const [errorMessage, setErrorMessage] = useState();
+  const {
+    loading: queryLoading,
+    error: queryError,
+    data
+  } = useQuery(INVENTORY_ITEMS);
 
-  useEffect(() => {
-    const getInventory = async () => {
-      try {
-        const { data } = await fetchContext.authAxios.get(
-          'inventory'
-        );
-        setInventory(data);
-      } catch (err) {
-        console.log('the err', err);
-      }
-    };
-
-    getInventory();
-  }, [fetchContext]);
-
-  const onSubmit = async (values, resetForm) => {
-    try {
-      const { data } = await fetchContext.authAxios.post(
-        'inventory',
-        values
-      );
-      setInventory([...inventory, data.inventoryItem]);
-      resetForm();
-      setSuccessMessage(data.message);
-      setErrorMessage(null);
-    } catch (err) {
-      const { data } = err.response;
-      setSuccessMessage(null);
-      setErrorMessage(data.message);
+  const [
+    addInventoryItem,
+    { data: addItemData }
+  ] = useMutation(ADD_INVENTORY_ITEM, {
+    update(cache, { data: { addInventoryItem } }) {
+      const { inventoryItem } = addInventoryItem;
+      const { inventoryItems } = cache.readQuery({
+        query: INVENTORY_ITEMS
+      });
+      cache.writeQuery({
+        query: INVENTORY_ITEMS,
+        data: {
+          inventoryItems: [...inventoryItems, inventoryItem]
+        }
+      });
     }
-  };
+  });
 
-  const onDelete = async item => {
-    try {
-      if (
-        window.confirm(
-          'Are you sure you want to delete this item?'
-        )
-      ) {
-        const {
-          data
-        } = await fetchContext.authAxios.delete(
-          `inventory/${item._id}`
-        );
-        setInventory(
-          inventory.filter(
-            item => item._id !== data.deletedItem._id
-          )
-        );
+  const [deleteInventoryItem] = useMutation(
+    DELETE_INVENTORY_ITEM,
+    {
+      update(cache, { data: { deleteInventoryItem } }) {
+        const { inventoryItem } = deleteInventoryItem;
+        const { inventoryItems } = cache.readQuery({
+          query: INVENTORY_ITEMS
+        });
+        cache.writeQuery({
+          query: INVENTORY_ITEMS,
+          data: {
+            inventoryItems: inventoryItems.filter(
+              item => item._id !== inventoryItem._id
+            )
+          }
+        });
       }
-    } catch (err) {
-      const { data } = err.response;
-      setErrorMessage(data.message);
     }
-  };
+  );
 
   return (
     <>
+      {queryLoading && <p>Loading...</p>}
+      {queryError && <p>{JSON.stringify(queryError)}</p>}
       <PageTitle title="Inventory" />
-      {successMessage && (
-        <FormSuccess text={successMessage} />
+      {addItemData && (
+        <FormSuccess
+          text={addItemData.addInventoryItem.message}
+        />
       )}
-      {errorMessage && <FormError text={errorMessage} />}
+      {queryError && <FormError text={queryError} />}
       <div className="mb-4">
-        <NewInventoryItem onSubmit={onSubmit} />
+        <NewInventoryItem onSubmit={addInventoryItem} />
       </div>
-      {inventory && inventory.length
-        ? inventory.map(item => (
+      {data && data.inventoryItems.length
+        ? data.inventoryItems.map(item => (
             <InventoryItemContainer key={item._id}>
               <InventoryItem
                 item={item}
-                onDelete={onDelete}
+                onDelete={deleteInventoryItem}
               />
             </InventoryItemContainer>
           ))

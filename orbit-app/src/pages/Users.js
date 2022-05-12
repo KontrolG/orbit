@@ -1,19 +1,16 @@
-import React, {
-  useContext,
-  useEffect,
-  useState
-} from 'react';
-import PageTitle from '../components/common/PageTitle';
-import { FetchContext } from '../context/FetchContext';
+import React from 'react';
+import { useQuery } from '@apollo/react-hooks';
+import { gql } from 'apollo-boost';
 import Card from '../components/common/Card';
+import PageTitle from '../components/common/PageTitle';
 import defaultAvatar from './../images/defaultAvatar.png';
-import DOMPurify from 'dompurify';
 
 const UserDetailLabel = ({ text }) => (
   <p className="mt-2 uppercase font-bold text-gray-500 text-xs">
     {text}
   </p>
 );
+
 const UserDetail = ({ user }) => (
   <Card>
     <div className="flex">
@@ -33,9 +30,7 @@ const UserDetail = ({ user }) => (
           <UserDetailLabel text="Bio" />
           {user.bio ? (
             <div
-              dangerouslySetInnerHTML={{
-                __html: DOMPurify.sanitize(user.bio)
-              }}
+              dangerouslySetInnerHTML={{ __html: user.bio }}
             />
           ) : (
             <p className="text-gray-500 italic">
@@ -48,30 +43,29 @@ const UserDetail = ({ user }) => (
   </Card>
 );
 
-const Users = () => {
-  const fetchContext = useContext(FetchContext);
-  const [users, setUsers] = useState([]);
+const USERS_DATA = gql`
+  {
+    users {
+      _id
+      firstName
+      lastName
+      avatar
+      bio
+    }
+  }
+`;
 
-  useEffect(() => {
-    const getUsers = async () => {
-      try {
-        const { data } = await fetchContext.authAxios.get(
-          'users'
-        );
-        setUsers(data.users);
-      } catch (err) {
-        console.log(err);
-      }
-    };
-    getUsers();
-  }, [fetchContext.authAxios]);
+const Users = () => {
+  const { loading, error, data } = useQuery(USERS_DATA);
 
   return (
     <>
       <PageTitle title="Users" />
       <div className="flex flex-col">
-        {!!users.length &&
-          users.map(user => (
+        {loading && <p>Loading...</p>}
+        {error && <p>Something went wrong</p>}
+        {data &&
+          data.users.map(user => (
             <div className="m-2" key={user._id}>
               <UserDetail user={user} />
             </div>

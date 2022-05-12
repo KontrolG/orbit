@@ -1,340 +1,356 @@
-require("dotenv").config();
-const express = require("express");
-const bodyParser = require("body-parser");
-const cors = require("cors");
-const mongoose = require("mongoose");
+require('dotenv').config();
+const jwtDecode = require('jwt-decode');
+const mongoose = require('mongoose');
+const dashboardData = require('./data/dashboard');
+const User = require('./data/User');
+const InventoryItem = require('./data/InventoryItem');
 
-const dashboardData = require("./data/dashboard");
-const User = require("./data/User");
-const InventoryItem = require("./data/InventoryItem");
-const { hashPassword, verifyPassword } = require("./util");
-const cookieParser = require("cookie-parser");
-const session = require("express-session");
-const FileStore = require("session-file-store")(session);
-const csrf = require("csurf");
-var jwt = require("express-jwt");
-var jwks = require("jwks-rsa");
-const jwtAuthz = require("express-jwt-authz");
+const {
+  ApolloServer,
+  gql,
+  ApolloError,
+  UserInputError
+} = require('apollo-server');
 
-const app = express();
+const {
+  createToken,
+  hashPassword,
+  verifyPassword
+} = require('./util');
 
-app.use(cors());
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(bodyParser.json());
-app.use(cookieParser());
-app.use(csrf({ cookie: true }));
-app.use(
-  session({
-    store: new FileStore(),
-    secret: process.env.SESSION_SECRET,
-    saveUninitialized: false,
-    resave: false,
-    rolling: true,
-    cookie: {
-      sameSite: true,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: parseInt(process.env.SESSION_MAX_AGE, 10)
+const resolvers = {
+  Query: {
+    dashboardData: () => {
+      return dashboardData;
+    },
+    users: async () => {
+      try {
+        return await User.find()
+          .lean()
+          .select('_id firstName lastName avatar bio');
+      } catch (err) {
+        return err;
+      }
+    },
+    user: async () => {
+      try {
+        const user = '507f1f77bcf86cd799439011';
+        return await User.findOne({ _id: user })
+          .lean()
+          .select('_id firstName lastName role avatar bio');
+      } catch (err) {
+        return err;
+      }
+    },
+    inventoryItems: async () => {
+      try {
+        const user = '507f1f77bcf86cd799439011';
+        return await InventoryItem.find({
+          user: user
+        });
+      } catch (err) {
+        return err;
+      }
+    },
+    userBio: async () => {
+      try {
+        const user = '507f1f77bcf86cd799439011';
+        const foundUser = await User.findOne({
+          _id: user
+        })
+          .lean()
+          .select('bio');
+
+        return { bio: foundUser.bio };
+      } catch (err) {
+        return err;
+      }
     }
-  })
-);
+  },
+  Mutation: {
+    login: async (parent, args) => {
+      try {
+        const { email, password } = args;
 
-app.use((req, res, next) => {
-  console.log(req.session);
-  next();
-});
+        const user = await User.findOne({
+          email
+        }).lean();
 
-app.get("/api/csrf-token", (req, res, next) => {
-  const csrfToken = req.csrfToken();
-  res.json({ csrfToken });
-});
-
-app.post("/api/authenticate", async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    const user = await User.findOne({
-      email
-    }).lean();
-
-    if (!user) {
-      return res.status(403).json({
-        message: "Wrong email or password."
-      });
-    }
-
-    const passwordValid = await verifyPassword(password, user.password);
-
-    if (!passwordValid) {
-      return res.status(403).json({
-        message: "Wrong email or password."
-      });
-    }
-
-    const { password: userPassword, bio, ...rest } = user;
-    const userInfo = Object.assign({}, { ...rest });
-    req.session.user = userInfo;
-
-    res.json({
-      message: "Authentication successful!",
-      userInfo
-    });
-  } catch (err) {
-    console.log(err);
-    return res.status(400).json({ message: "Something went wrong." });
-  }
-});
-
-app.post("/api/signup", async (req, res) => {
-  try {
-    const { email, firstName, lastName } = req.body;
-
-    const hashedPassword = await hashPassword(req.body.password);
-
-    const userData = {
-      email: email.toLowerCase(),
-      firstName,
-      lastName,
-      password: hashedPassword,
-      role: "admin"
-    };
-
-    const existingEmail = await User.findOne({
-      email: userData.email
-    }).lean();
-
-    if (existingEmail) {
-      return res.status(400).json({ message: "Email already exists" });
-    }
-
-    const newUser = new User(userData);
-    const savedUser = await newUser.save();
-
-    if (savedUser) {
-      const { firstName, lastName, email, role, _id } = savedUser;
-
-      const userInfo = {
-        _id,
-        firstName,
-        lastName,
-        email,
-        role
-      };
-
-      req.session.user = userInfo;
-
-      return res.json({
-        message: "User created!",
-        userInfo
-      });
-    } else {
-      return res.status(400).json({
-        message: "There was a problem creating your account"
-      });
-    }
-  } catch (err) {
-    return res.status(400).json({
-      message: "There was a problem creating your account"
-    });
-  }
-});
-
-const requireAuth = jwt({
-  secret: jwks.expressJwtSecret({
-    cache: true,
-    rateLimit: true,
-    jwksRequestsPerMinute: 5,
-    jwksUri: process.env.AUTH0_JWKS_URI
-  }),
-  audience: process.env.AUTH0_AUDIENCE,
-  issuer: process.env.AUTH0_ISSUER,
-  algorithms: ["RS256"]
-});
-
-const getUserId = (user) => user["https://app.orbit/" + "sub"];
-
-app.get("/api/user-info", (req, res) => {
-  const userInfo = req.user;
-
-  if (!userInfo) {
-    return res.json({ message: "Unauthenticated", userInfo: null });
-  }
-
-  setTimeout(() => {
-    res.json({ userInfo });
-  }, 2000);
-});
-
-app.post("/api/logout", (req, res) => {
-  req.session.destroy((error) => {
-    if (error) {
-      return res.status(400).json({
-        message: `Something went wrong. Error: ${error.toString()}`
-      });
-    }
-    return res.json({ message: "Logout successful" });
-  });
-});
-
-app.get(
-  "/api/dashboard-data",
-  requireAuth,
-  jwtAuthz(["read:dashboard"]),
-  (req, res) => res.json(dashboardData)
-);
-
-app.patch("/api/user-role", jwtAuthz(["edit:user"]), async (req, res) => {
-  try {
-    const { role } = req.body;
-    const allowedRoles = ["user", "admin"];
-
-    if (!allowedRoles.includes(role)) {
-      return res.status(400).json({ message: "Role not allowed" });
-    }
-    await User.findOneAndUpdate({ _id: getUserId(req.user) }, { role });
-    res.json({
-      message:
-        "User role updated. You must log in again for the changes to take effect."
-    });
-  } catch (err) {
-    return res.status(400).json({ error: err });
-  }
-});
-
-app.get(
-  "/api/inventory",
-  requireAuth,
-  jwtAuthz(["read:inventory"]),
-  async (req, res) => {
-    try {
-      const user = getUserId(req.user);
-      const inventoryItems = await InventoryItem.find({
-        user
-      });
-      res.json(inventoryItems);
-    } catch (err) {
-      return res.status(400).json({ error: err });
-    }
-  }
-);
-
-app.post(
-  "/api/inventory",
-  requireAuth,
-  jwtAuthz(["write:inventory"]),
-  async (req, res) => {
-    try {
-      const userId = getUserId(req.user);
-      const input = Object.assign({}, req.body, {
-        user: userId
-      });
-      const inventoryItem = new InventoryItem(input);
-      await inventoryItem.save();
-      res.status(201).json({
-        message: "Inventory item created!",
-        inventoryItem
-      });
-    } catch (err) {
-      return res.status(400).json({
-        message: "There was a problem creating the item"
-      });
-    }
-  }
-);
-
-app.delete(
-  "/api/inventory/:id",
-  requireAuth,
-  jwtAuthz(["delete:inventory"]),
-  async (req, res) => {
-    try {
-      const deletedItem = await InventoryItem.findOneAndDelete({
-        _id: req.params.id,
-        user: getUserId(req.user)
-      });
-      res.status(201).json({
-        message: "Inventory item deleted!",
-        deletedItem
-      });
-    } catch (err) {
-      return res.status(400).json({
-        message: "There was a problem deleting the item."
-      });
-    }
-  }
-);
-
-app.get(
-  "/api/users",
-  requireAuth,
-  jwtAuthz(["read:users"]),
-  async (req, res) => {
-    try {
-      const users = await User.find()
-        .lean()
-        .select("_id firstName lastName avatar bio");
-
-      res.json({
-        users
-      });
-    } catch (err) {
-      return res.status(400).json({
-        message: "There was a problem getting the users"
-      });
-    }
-  }
-);
-
-app.get("/api/bio", requireAuth, jwtAuthz(["read:user"]), async (req, res) => {
-  try {
-    const _id = getUserId(req.user);
-    const user = await User.findOne({
-      _id
-    })
-      .lean()
-      .select("bio");
-
-    res.json({
-      bio: user.bio
-    });
-  } catch (err) {
-    return res.status(400).json({
-      message: "There was a problem updating your bio"
-    });
-  }
-});
-
-app.patch(
-  "/api/bio",
-  requireAuth,
-  jwtAuthz(["edit:user"]),
-  async (req, res) => {
-    try {
-      const _id = getUserId(req.user);
-      const { bio } = req.body;
-      const updatedUser = await User.findOneAndUpdate(
-        {
-          _id
-        },
-        {
-          bio
-        },
-        {
-          new: true
+        if (!user) {
+          throw new UserInputError(
+            'Wrong email or password'
+          );
         }
-      );
 
-      res.json({
-        message: "Bio updated!",
-        bio: updatedUser.bio
-      });
-    } catch (err) {
-      return res.status(400).json({
-        message: "There was a problem updating your bio"
-      });
+        const passwordValid = await verifyPassword(
+          password,
+          user.password
+        );
+
+        if (passwordValid) {
+          const { password, bio, ...rest } = user;
+          const userInfo = Object.assign({}, { ...rest });
+
+          const token = createToken(userInfo);
+
+          const decodedToken = jwtDecode(token);
+          const expiresAt = decodedToken.exp;
+
+          return {
+            message: 'Authentication successful!',
+            token,
+            userInfo,
+            expiresAt
+          };
+        } else {
+          throw new UserInputError(
+            'Wrong email or password'
+          );
+        }
+      } catch (err) {
+        return err;
+      }
+    },
+    signup: async (parent, args) => {
+      try {
+        const {
+          firstName,
+          lastName,
+          email,
+          password
+        } = args;
+
+        const hashedPassword = await hashPassword(password);
+
+        const userData = {
+          email: email.toLowerCase(),
+          firstName,
+          lastName,
+          password: hashedPassword,
+          role: 'admin'
+        };
+
+        const existingEmail = await User.findOne({
+          email: userData.email
+        }).lean();
+
+        if (existingEmail) {
+          throw new ApolloError('Email already exists');
+        }
+
+        const newUser = new User(userData);
+        const savedUser = await newUser.save();
+
+        if (savedUser) {
+          const token = createToken(savedUser);
+          const decodedToken = jwtDecode(token);
+          const expiresAt = decodedToken.exp;
+
+          const {
+            _id,
+            firstName,
+            lastName,
+            email,
+            role
+          } = savedUser;
+
+          const userInfo = {
+            _id,
+            firstName,
+            lastName,
+            email,
+            role
+          };
+
+          return {
+            message: 'User created!',
+            token,
+            userInfo,
+            expiresAt
+          };
+        } else {
+          throw new ApolloError(
+            'There was a problem creating your account'
+          );
+        }
+      } catch (err) {
+        return err;
+      }
+    },
+    addInventoryItem: async (parent, args) => {
+      try {
+        const user = '507f1f77bcf86cd799439011';
+        const input = Object.assign({}, args, {
+          user: user
+        });
+        const inventoryItem = new InventoryItem(input);
+        const inventoryItemResult = await inventoryItem.save();
+        return {
+          message: 'Invetory item created!',
+          inventoryItem: inventoryItemResult
+        };
+      } catch (err) {
+        return err;
+      }
+    },
+    deleteInventoryItem: async (parent, args) => {
+      try {
+        const user = '507f1f77bcf86cd799439011';
+        const { id } = args;
+        const deletedItem = await InventoryItem.findOneAndDelete(
+          { _id: id, user: user }
+        );
+        return {
+          message: 'Inventory item deleted!',
+          inventoryItem: deletedItem
+        };
+      } catch (err) {
+        return err;
+      }
+    },
+    updateUserRole: async (parent, args) => {
+      try {
+        const user = '507f1f77bcf86cd799439011';
+        const { role } = args;
+        const allowedRoles = ['user', 'admin'];
+
+        if (!allowedRoles.includes(role)) {
+          throw new ApolloError('Invalid user role');
+        }
+        const updatedUser = await User.findOneAndUpdate(
+          { _id: user },
+          { role }
+        );
+        return {
+          message:
+            'User role updated. You must log in again for the changes to take effect.',
+          user: updatedUser
+        };
+      } catch (err) {
+        return err;
+      }
+    },
+    updateUserBio: async (parent, args) => {
+      try {
+        const user = '507f1f77bcf86cd799439011';
+        const { bio } = args;
+        const updatedUser = await User.findOneAndUpdate(
+          {
+            _id: user
+          },
+          {
+            bio
+          },
+          {
+            new: true
+          }
+        );
+
+        return {
+          message: 'Bio updated!',
+          userBio: {
+            bio: updatedUser.bio
+          }
+        };
+      } catch (err) {
+        return err;
+      }
     }
   }
-);
+};
+
+const typeDefs = gql`
+  type Sale {
+    date: String!
+    amount: Int!
+  }
+
+  type DashboardData {
+    salesVolume: Int!
+    newCustomers: Int!
+    refunds: Int!
+    graphData: [Sale!]!
+  }
+
+  type User {
+    _id: ID!
+    firstName: String!
+    lastName: String!
+    email: String!
+    role: String!
+    avatar: String
+    bio: String
+  }
+
+  type InventoryItem {
+    _id: ID!
+    user: String!
+    name: String!
+    itemNumber: String!
+    unitPrice: String!
+    image: String!
+  }
+
+  type AuthenticationResult {
+    message: String!
+    userInfo: User!
+    token: String!
+    expiresAt: String!
+  }
+
+  type InventoryItemResult {
+    message: String!
+    inventoryItem: InventoryItem
+  }
+
+  type UserUpdateResult {
+    message: String!
+    user: User!
+  }
+
+  type UserBioUpdateResult {
+    message: String!
+    userBio: UserBio!
+  }
+
+  type UserBio {
+    bio: String!
+  }
+
+  type Query {
+    dashboardData: DashboardData
+    users: [User]
+    user: User
+    inventoryItems: [InventoryItem]
+    userBio: UserBio
+  }
+
+  type Mutation {
+    login(
+      email: String!
+      password: String!
+    ): AuthenticationResult
+    signup(
+      firstName: String!
+      lastName: String!
+      email: String!
+      password: String!
+    ): AuthenticationResult
+    addInventoryItem(
+      name: String!
+      itemNumber: String!
+      unitPrice: Float!
+    ): InventoryItemResult
+    deleteInventoryItem(id: ID!): InventoryItemResult
+    updateUserRole(role: String!): UserUpdateResult
+    updateUserBio(bio: String!): UserBioUpdateResult
+  }
+`;
+
+const server = new ApolloServer({
+  typeDefs,
+  resolvers
+});
 
 async function connect() {
   try {
@@ -345,10 +361,11 @@ async function connect() {
       useFindAndModify: false
     });
   } catch (err) {
-    console.log("Mongoose error", err);
+    console.log('Mongoose error', err);
   }
-  app.listen(3001);
-  console.log("API listening on localhost:3001");
+  server.listen(3001).then(({ url }) => {
+    console.log(`🚀  Server ready at ${url}`);
+  });
 }
 
 connect();

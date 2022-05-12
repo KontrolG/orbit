@@ -1,50 +1,44 @@
-import React, {
-  useState,
-  useContext,
-  useEffect
-} from 'react';
-import PageTitle from '../components/common/PageTitle';
-import DashboardMetric from './../components/DashboardMetric';
-import Card from '../components/common/Card';
+import React from 'react';
+import { useQuery } from '@apollo/react-hooks';
+import { gql } from 'apollo-boost';
 import {
   faChartArea,
   faDollarSign,
   faUserPlus
 } from '@fortawesome/free-solid-svg-icons';
-import { FetchContext } from '../context/FetchContext';
-import { formatCurrency } from './../util';
+import Card from '../components/common/Card';
+import PageTitle from '../components/common/PageTitle';
 import DashboardChart from './../components/DashboardChart';
+import DashboardMetric from './../components/DashboardMetric';
+import { formatCurrency } from './../util';
+
+const DASHBOARD_DATA = gql`
+  {
+    dashboardData {
+      salesVolume
+      newCustomers
+      refunds
+      graphData {
+        date
+        amount
+      }
+    }
+  }
+`;
 
 const Dashboard = () => {
-  const fetchContext = useContext(FetchContext);
-  const [dashboardData, setDashboardData] = useState();
-
-  useEffect(() => {
-    const getDashboardData = async () => {
-      try {
-        const { data } = await fetchContext.authAxios.get(
-          'dashboard-data'
-        );
-        setDashboardData(data);
-      } catch (err) {
-        console.log(err);
-      }
-    };
-
-    getDashboardData();
-  }, [fetchContext]);
-
+  const { data } = useQuery(DASHBOARD_DATA);
   return (
     <>
       <PageTitle title="Dashboard" />
-      {dashboardData ? (
+      {data ? (
         <>
           <div className="mb-4 flex flex-col sm:flex-row">
             <div className="w-full sm:w-1/3 sm:mr-2 mb-4 sm:mb-0">
               <DashboardMetric
                 title="Sales Volume"
                 value={formatCurrency(
-                  dashboardData.salesVolume
+                  data.dashboardData.salesVolume
                 )}
                 icon={faChartArea}
               />
@@ -52,7 +46,7 @@ const Dashboard = () => {
             <div className="w-full sm:w-1/3 sm:ml-2 sm:mr-2 mb-4 sm:mb-0">
               <DashboardMetric
                 title="New Customers"
-                value={dashboardData.newCustomers}
+                value={data.dashboardData.newCustomers}
                 icon={faUserPlus}
               />
             </div>
@@ -60,7 +54,7 @@ const Dashboard = () => {
               <DashboardMetric
                 title="Refunds"
                 value={formatCurrency(
-                  dashboardData.refunds
+                  data.dashboardData.refunds
                 )}
                 icon={faDollarSign}
               />
@@ -68,9 +62,9 @@ const Dashboard = () => {
           </div>
           <div className="w-full mt-4">
             <Card>
-              {dashboardData && (
+              {data.dashboardData && (
                 <DashboardChart
-                  salesData={dashboardData.graphData}
+                  salesData={data.dashboardData.graphData}
                 />
               )}
             </Card>

@@ -1,11 +1,22 @@
-import React, { useContext, useEffect, useRef, useState } from "react";
-import { faCaretDown, faSignOutAlt } from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import defaultAvatar from "./../images/defaultAvatar.png";
-import { useAuth0 } from "@auth0/auth0-react";
+import React, {
+  useContext,
+  useEffect,
+  useRef,
+  useState
+} from 'react';
+import {
+  faCaretDown,
+  faSignOutAlt
+} from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { AuthContext } from './../context/AuthContext';
+import defaultAvatar from './../images/defaultAvatar.png';
 
 const DropdownItem = ({ item }) => (
-  <button className="text-gray-700 flex items-center" onClick={item.onClick}>
+  <button
+    className="text-gray-700 flex items-center"
+    onClick={item.onClick}
+  >
     <FontAwesomeIcon icon={item.icon} />
     <p className="ml-2">{item.title}</p>
   </button>
@@ -27,29 +38,32 @@ const DropdownContent = ({ dropdownItems }) => {
 
 const AvatarDropdown = () => {
   const node = useRef();
-  const { logout } = useAuth0();
-  const { user } = useAuth0();
+  const auth = useContext(AuthContext);
+  const { authState } = auth;
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const dropdownItems = [
     {
-      title: "Log Out",
+      title: 'Log Out',
       icon: faSignOutAlt,
-      onClick: () => logout({ returnTo: window.location.origin })
+      onClick: auth.logout
     }
   ];
 
-  const handleClick = (e) => {
+  const handleClick = e => {
     if (!node.current.contains(e.target)) {
       setDropdownOpen(false);
     }
   };
 
   useEffect(() => {
-    document.addEventListener("mousedown", handleClick);
+    document.addEventListener('mousedown', handleClick);
 
     return () => {
-      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener(
+        'mousedown',
+        handleClick
+      );
     };
   }, []);
 
@@ -61,12 +75,14 @@ const AvatarDropdown = () => {
         onClick={() => setDropdownOpen(!dropdownOpen)}
       >
         <img
-          src={user.picture || defaultAvatar}
+          src={authState.userInfo.avatar || defaultAvatar}
           className="rounded-full w-6 border-2 border-white"
           alt="Avatar"
         />
         <div className="px-3">
-          <p className="text-white">{user.nickname}</p>
+          <p className="text-white">
+            {authState.userInfo.firstName}
+          </p>
         </div>
         <div className="mr-1 text-white">
           <FontAwesomeIcon icon={faCaretDown} />

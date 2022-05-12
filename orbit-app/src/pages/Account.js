@@ -1,23 +1,33 @@
-import React, { useContext, useState } from "react";
-import PageTitle from "../components/common/PageTitle";
-import Card from "../components/common/Card";
-import { FetchContext } from "../context/FetchContext";
+import React, { useContext } from 'react';
+import { useMutation } from '@apollo/react-hooks';
+import { gql } from 'apollo-boost';
+import Card from '../components/common/Card';
+import PageTitle from '../components/common/PageTitle';
+import { AuthContext } from '../context/AuthContext';
+
+const UPDATE_USER_ROLE = gql`
+  mutation UpdateUserRole($role: String!) {
+    updateUserRole(role: $role) {
+      message
+      user {
+        _id
+        firstName
+        lastName
+        email
+        role
+        avatar
+        bio
+      }
+    }
+  }
+`;
 
 const Account = () => {
-  const fetchContext = useContext(FetchContext);
-  const [successMessage, setSuccessMessage] = useState();
-  const [errorMessage, setErrorMessage] = useState();
+  const auth = useContext(AuthContext);
 
-  const setUserRole = async (role) => {
-    try {
-      const { data } = await fetchContext.authAxios.patch("user-role", {
-        role
-      });
-      setSuccessMessage(data.message);
-    } catch (err) {
-      setErrorMessage(err.response.data.message);
-    }
-  };
+  const [updateUserRole, { error, data }] = useMutation(
+    UPDATE_USER_ROLE
+  );
 
   return (
     <>
@@ -28,17 +38,25 @@ const Account = () => {
           <p>Select a role for yourself</p>
           <div className="mt-2 flex">
             <select
-              defaultValue={"admin"}
-              onChange={(e) => setUserRole(e.target.value)}
+              defaultValue={auth.authState.userInfo.role}
+              onChange={e =>
+                updateUserRole({
+                  variables: { role: e.target.value }
+                })
+              }
             >
               <option value="user">User</option>
               <option value="admin">Admin</option>
             </select>
-            {successMessage && (
-              <p className="text-green-700 ml-4">{successMessage}</p>
+            {data && (
+              <p className="text-green-700 ml-4">
+                {data.updateUserRole.message}
+              </p>
             )}
-            {errorMessage && (
-              <p className="text-red-500 ml-4">{errorMessage}</p>
+            {error && (
+              <p className="text-red-500 ml-4">
+                {error.message}
+              </p>
             )}
           </div>
         </div>

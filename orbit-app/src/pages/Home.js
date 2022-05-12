@@ -1,25 +1,38 @@
-import React, { useContext } from "react";
-import { Link } from "react-router-dom";
-import GradientLink from "../components/common/GradientLink";
-import GradientBar from "./../components/common/GradientBar";
-import GradientButton from "./../components/common/GradientButton";
-import logo from "./../images/logo.png";
-import { useAuth0 } from "@auth0/auth0-react";
+import React, { useContext } from 'react';
+import { Link } from 'react-router-dom';
+import { AuthContext } from './../context/AuthContext';
+import GradientLink from '../components/common/GradientLink';
+import GradientBar from './../components/common/GradientBar';
+import logo from './../images/logo.png';
 
 const Home = () => {
-  const { isAuthenticated, loginWithRedirect } = useAuth0();
+  const auth = useContext(AuthContext);
 
   return (
     <>
       <GradientBar />
       <div className="w-full top-0 bg-white px-10 py-5">
         <div className="flex justify-between">
-          <img className="w-32 h-full" src={logo} alt="Logo" />
+          <img
+            className="w-32 h-full"
+            src={logo}
+            alt="Logo"
+          />
           <div className="flex items-center">
-            <Link to="/signup" className="text-blue-700 mr-6">
+            <Link
+              to="/signup"
+              className="text-blue-700 mr-6"
+            >
               Sign Up
             </Link>
-            <GradientButton onClick={loginWithRedirect} text="Log In" />
+            <GradientLink
+              to={
+                auth.isAuthenticated()
+                  ? '/dashboard'
+                  : '/login'
+              }
+              text="Log In"
+            />
           </div>
         </div>
       </div>
@@ -43,7 +56,11 @@ const Home = () => {
               <GradientLink
                 text="Get Started"
                 size="lg"
-                to={isAuthenticated ? "/dashboard" : "/login"}
+                to={
+                  auth.isAuthenticated()
+                    ? '/dashboard'
+                    : '/login'
+                }
               />
             </div>
           </div>

@@ -1,50 +1,45 @@
-import React, {
-  useContext,
-  useState,
-  useEffect
-} from 'react';
+import React from 'react';
+import { useQuery, useMutation } from '@apollo/react-hooks';
+import { gql } from 'apollo-boost';
+import { Field, Form, Formik } from 'formik';
+import GradientButton from '../components/common/GradientButton';
 import PageTitle from '../components/common/PageTitle';
 import Card from './../components/common/Card';
-import GradientButton from '../components/common/GradientButton';
-import { Formik, Form, Field } from 'formik';
-import { FetchContext } from './../context/FetchContext';
 import FormError from './../components/FormError';
 import FormSuccess from './../components/FormSuccess';
 
-const Settings = () => {
-  const fetchContext = useContext(FetchContext);
-  const [bio, setBio] = useState();
-  const [successMessage, setSuccessMessage] = useState();
-  const [errorMessage, setErrorMessage] = useState();
-
-  useEffect(() => {
-    const getBio = async () => {
-      try {
-        const { data } = await fetchContext.authAxios.get(
-          'bio'
-        );
-        setBio(data.bio);
-      } catch (err) {
-        console.log(err);
-      }
-    };
-    getBio();
-  }, [fetchContext.authAxios]);
-
-  const saveBio = async bio => {
-    try {
-      const { data } = await fetchContext.authAxios.patch(
-        'bio',
-        bio
-      );
-      setErrorMessage(null);
-      setSuccessMessage(data.message);
-    } catch (err) {
-      const { data } = err.response;
-      setSuccessMessage(null);
-      setErrorMessage(data.message);
+const USER = gql`
+  {
+    user {
+      _id
+      firstName
+      lastName
+      role
+      avatar
+      bio
     }
-  };
+  }
+`;
+
+const UPDATE_USER_BIO = gql`
+  mutation UpdateUserBio($bio: String!) {
+    updateUserBio(bio: $bio) {
+      message
+      userBio {
+        bio
+      }
+    }
+  }
+`;
+
+const Settings = () => {
+  const { data } = useQuery(USER);
+
+  const [
+    updateUserBio,
+    { error, data: mutationData }
+  ] = useMutation(UPDATE_USER_BIO);
+
   return (
     <>
       <PageTitle title="Settings" />
@@ -52,29 +47,35 @@ const Settings = () => {
         <h2 className="font-bold mb-2">
           Fill Out Your Bio
         </h2>
-        {successMessage && (
-          <FormSuccess text={successMessage} />
+        {mutationData && (
+          <FormSuccess
+            text={mutationData.updateUserBio.message}
+          />
         )}
-        {errorMessage && <FormError text={errorMessage} />}
-        <Formik
-          initialValues={{
-            bio
-          }}
-          onSubmit={values => saveBio(values)}
-          enableReinitialize={true}
-        >
-          {() => (
-            <Form>
-              <Field
-                className="border border-gray-300 rounded p-1 w-full h-56 mb-2"
-                component="textarea"
-                name="bio"
-                placeholder="Your bio here"
-              />
-              <GradientButton text="Save" type="submit" />
-            </Form>
-          )}
-        </Formik>
+        {error && <FormError text={error.message} />}
+        {data && (
+          <Formik
+            initialValues={{
+              bio: data && data.user ? data.user.bio : ''
+            }}
+            onSubmit={values =>
+              updateUserBio({ variables: { ...values } })
+            }
+            enableReinitialize={true}
+          >
+            {() => (
+              <Form>
+                <Field
+                  className="border border-gray-300 rounded p-1 w-full h-56 mb-2"
+                  component="textarea"
+                  name="bio"
+                  placeholder="Your bio here"
+                />
+                <GradientButton text="Save" type="submit" />
+              </Form>
+            )}
+          </Formik>
+        )}
       </Card>
     </>
   );
