@@ -10,12 +10,14 @@ const {
   gql,
   ApolloError,
   UserInputError,
-  AuthenticationError
+  AuthenticationError,
+  SchemaDirectiveVisitor
 } = require("apollo-server");
 
 const { createToken, hashPassword, verifyPassword } = require("./util");
 
 const jwt = require("jsonwebtoken");
+const { defaultFieldResolver } = require("graphql");
 
 function checkUserRole(user, allowedRoles = ["admin"]) {
   if (!user) {
@@ -32,7 +34,6 @@ function checkUserRole(user, allowedRoles = ["admin"]) {
 const resolvers = {
   Query: {
     dashboardData: (parent, args, context) => {
-      checkUserRole(context.user, ["user", "admin"]);
       return dashboardData;
     },
     users: async () => {
@@ -253,6 +254,13 @@ const resolvers = {
 };
 
 const typeDefs = gql`
+  directive @auth(requires: [Role] = [ADMIN]) on OBJECT | FIELD_DEFINITION
+
+  enum Role {
+    ADMIN
+    USER
+  }
+
   type Sale {
     date: String!
     amount: Int!
@@ -262,7 +270,7 @@ const typeDefs = gql`
     salesVolume: Int!
     newCustomers: Int!
     refunds: Int!
-    graphData: [Sale!]!
+    graphData: [Sale!]! @auth(requires: [USER, ADMIN])
   }
 
   type User {
@@ -337,8 +345,52 @@ const typeDefs = gql`
   }
 `;
 
+class AuthDirective extends SchemaDirectiveVisitor {
+  ensureFieldsWrapped(objectType) {
+    if (objectType._authFieldsWrapped) return;
+    objectType._authFieldsWrapped = true;
+
+    const fields = objectType.getFields();
+
+    Object.values(fields).forEach((field) => {
+      const { resolve = defaultFieldResolver } = field;
+      field.resolve = (...args) => {
+        const allowedRoles =
+          field._requiredAuthRoles || objectType._requiredAuthRoles;
+
+        if (!allowedRoles || allowedRoles.length < 1) {
+          return resolve.apply(this, args);
+        }
+
+        const context = args[2];
+        const { user } = context;
+
+        checkUserRole(
+          user,
+          allowedRoles.map((role) => role.toLowerCase())
+        );
+
+        return resolve.apply(this, args);
+      };
+    });
+  }
+
+  visitObject(objectType) {
+    this.ensureFieldsWrapped(objectType);
+    objectType._requiredAuthRoles = this.args.requires;
+  }
+
+  visitFieldDefinition(field, details) {
+    this.ensureFieldsWrapped(details.objectType);
+    field._requiredAuthRoles = this.args.requires;
+  }
+}
+
 const server = new ApolloServer({
   typeDefs,
+  schemaDirectives: {
+    auth: AuthDirective
+  },
   resolvers,
   context({ req }) {
     try {
