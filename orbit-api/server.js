@@ -9,17 +9,30 @@ const {
   ApolloServer,
   gql,
   ApolloError,
-  UserInputError
+  UserInputError,
+  AuthenticationError
 } = require("apollo-server");
 
 const { createToken, hashPassword, verifyPassword } = require("./util");
 
 const jwt = require("jsonwebtoken");
 
+function checkUserRole(user, allowedRoles = ["admin"]) {
+  if (!user) {
+    throw new AuthenticationError("Not authenticated");
+  }
+
+  if (!allowedRoles || !allowedRoles.includes(user.role)) {
+    throw new AuthenticationError("Not authorized");
+  }
+
+  return true;
+}
+
 const resolvers = {
   Query: {
     dashboardData: (parent, args, context) => {
-      console.log(context);
+      checkUserRole(context.user, ["user", "admin"]);
       return dashboardData;
     },
     users: async () => {
