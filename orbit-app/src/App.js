@@ -25,7 +25,17 @@ const Settings = lazy(() => import('./pages/Settings'));
 const Users = lazy(() => import('./pages/Users'));
 
 const client = new ApolloClient({
-  uri: process.env.REACT_APP_GRAPHQL_URI
+  uri: process.env.REACT_APP_GRAPHQL_URI,
+  request(operation) {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    operation.setContext({
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+  }
 });
 
 const LoadingFallback = () => (
