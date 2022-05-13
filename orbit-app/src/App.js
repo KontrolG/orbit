@@ -1,28 +1,25 @@
-import React, { lazy, Suspense, useContext } from 'react';
-import { ApolloProvider } from '@apollo/react-hooks';
-import ApolloClient from 'apollo-boost';
+import React, { lazy, Suspense, useContext } from "react";
+import { ApolloProvider } from "@apollo/react-hooks";
+import ApolloClient from "apollo-boost";
 import {
   BrowserRouter as Router,
   Redirect,
   Route,
   Switch
-} from 'react-router-dom';
-import './App.css';
-import AppShell from './AppShell';
-import {
-  AuthContext,
-  AuthProvider
-} from './context/AuthContext';
-import FourOFour from './pages/FourOFour';
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
+} from "react-router-dom";
+import "./App.css";
+import AppShell from "./AppShell";
+import { AuthContext, AuthProvider } from "./context/AuthContext";
+import FourOFour from "./pages/FourOFour";
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
 
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const Inventory = lazy(() => import('./pages/Inventory'));
-const Account = lazy(() => import('./pages/Account'));
-const Settings = lazy(() => import('./pages/Settings'));
-const Users = lazy(() => import('./pages/Users'));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Inventory = lazy(() => import("./pages/Inventory"));
+const Account = lazy(() => import("./pages/Account"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Users = lazy(() => import("./pages/Users"));
 
 const client = new ApolloClient({
   uri: process.env.REACT_APP_GRAPHQL_URI,
@@ -35,6 +32,14 @@ const client = new ApolloClient({
         Authorization: `Bearer ${token}`
       }
     });
+  },
+  onError({ graphQLErrors }) {
+    if (graphQLErrors.length < 1) return;
+    const unauthorizedErrors = graphQLErrors.filter(
+      (error) => error.extensions.code === "UNAUTHENTICATED"
+    );
+    if (unauthorizedErrors.length < 1) return;
+    window.location = "/login";
   }
 });
 
