@@ -45,9 +45,9 @@ const resolvers = {
         return err;
       }
     },
-    user: async () => {
+    user: async (parent, args, context) => {
       try {
-        const user = "507f1f77bcf86cd799439011";
+        const user = context.user.sub;
         return await User.findOne({ _id: user })
           .lean()
           .select("_id firstName lastName role avatar bio");
@@ -55,9 +55,9 @@ const resolvers = {
         return err;
       }
     },
-    inventoryItems: async () => {
+    inventoryItems: async (parent, args, context) => {
       try {
-        const user = "507f1f77bcf86cd799439011";
+        const user = context.user.sub;
         return await InventoryItem.find({
           user: user
         });
@@ -65,9 +65,9 @@ const resolvers = {
         return err;
       }
     },
-    userBio: async () => {
+    userBio: async (parent, args, context) => {
       try {
-        const user = "507f1f77bcf86cd799439011";
+        const user = context.user.sub;
         const foundUser = await User.findOne({
           _id: user
         })
@@ -170,9 +170,9 @@ const resolvers = {
         return err;
       }
     },
-    addInventoryItem: async (parent, args) => {
+    addInventoryItem: async (parent, args, context) => {
       try {
-        const user = "507f1f77bcf86cd799439011";
+        const user = context.user.sub;
         const input = Object.assign({}, args, {
           user: user
         });
@@ -186,9 +186,9 @@ const resolvers = {
         return err;
       }
     },
-    deleteInventoryItem: async (parent, args) => {
+    deleteInventoryItem: async (parent, args, context) => {
       try {
-        const user = "507f1f77bcf86cd799439011";
+        const user = context.user.sub;
         const { id } = args;
         const deletedItem = await InventoryItem.findOneAndDelete({
           _id: id,
@@ -202,9 +202,9 @@ const resolvers = {
         return err;
       }
     },
-    updateUserRole: async (parent, args) => {
+    updateUserRole: async (parent, args, context) => {
       try {
-        const user = "507f1f77bcf86cd799439011";
+        const user = context.user.sub;
         const { role } = args;
         const allowedRoles = ["user", "admin"];
 
@@ -224,9 +224,9 @@ const resolvers = {
         return err;
       }
     },
-    updateUserBio: async (parent, args) => {
+    updateUserBio: async (parent, args, context) => {
       try {
-        const user = "507f1f77bcf86cd799439011";
+        const user = context.user.sub;
         const { bio } = args;
         const updatedUser = await User.findOneAndUpdate(
           {
