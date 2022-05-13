@@ -270,7 +270,7 @@ const typeDefs = gql`
     salesVolume: Int!
     newCustomers: Int!
     refunds: Int!
-    graphData: [Sale!]! @auth(requires: [USER, ADMIN])
+    graphData: [Sale!]!
   }
 
   type User {
@@ -319,11 +319,11 @@ const typeDefs = gql`
   }
 
   type Query {
-    dashboardData: DashboardData
-    users: [User]
-    user: User
-    inventoryItems: [InventoryItem]
-    userBio: UserBio
+    dashboardData: DashboardData @auth(requires: [USER, ADMIN])
+    users: [User] @auth(requires: [ADMIN])
+    user: User @auth(requires: [USER, ADMIN])
+    inventoryItems: [InventoryItem] @auth(requires: [ADMIN])
+    userBio: UserBio @auth(requires: [USER, ADMIN])
   }
 
   type Mutation {
@@ -338,10 +338,12 @@ const typeDefs = gql`
       name: String!
       itemNumber: String!
       unitPrice: Float!
-    ): InventoryItemResult
-    deleteInventoryItem(id: ID!): InventoryItemResult
+    ): InventoryItemResult @auth(requires: [ADMIN])
+    deleteInventoryItem(id: ID!): InventoryItemResult @auth(requires: [ADMIN])
     updateUserRole(role: String!): UserUpdateResult
+      @auth(requires: [USER, ADMIN])
     updateUserBio(bio: String!): UserBioUpdateResult
+      @auth(requires: [USER, ADMIN])
   }
 `;
 
