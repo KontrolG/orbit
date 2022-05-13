@@ -1,410 +1,339 @@
-require("dotenv").config();
-const jwtDecode = require("jwt-decode");
-const mongoose = require("mongoose");
-const dashboardData = require("./data/dashboard");
-const User = require("./data/User");
-const InventoryItem = require("./data/InventoryItem");
+require('dotenv').config();
+const express = require('express');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const jwt = require('express-jwt');
+const jwtDecode = require('jwt-decode');
+const mongoose = require('mongoose');
+
+const dashboardData = require('./data/dashboard');
+const User = require('./data/User');
+const InventoryItem = require('./data/InventoryItem');
 
 const {
-  ApolloServer,
-  gql,
-  ApolloError,
-  UserInputError,
-  AuthenticationError,
-  SchemaDirectiveVisitor
-} = require("apollo-server");
+  createToken,
+  hashPassword,
+  verifyPassword
+} = require('./util');
 
-const { createToken, hashPassword, verifyPassword } = require("./util");
+const app = express();
 
-const jwt = require("jsonwebtoken");
-const { defaultFieldResolver } = require("graphql");
+app.use(cors());
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
 
-function checkUserRole(user, allowedRoles = ["admin"]) {
-  if (!user) {
-    throw new AuthenticationError("Not authenticated");
-  }
+app.post('/api/authenticate', async (req, res) => {
+  try {
+    const { email, password } = req.body;
 
-  if (!allowedRoles || !allowedRoles.includes(user.role)) {
-    throw new AuthenticationError("Not authorized");
-  }
+    const user = await User.findOne({
+      email
+    }).lean();
 
-  return true;
-}
-
-const resolvers = {
-  Query: {
-    dashboardData: (parent, args, context) => {
-      return dashboardData;
-    },
-    users: async () => {
-      try {
-        return await User.find()
-          .lean()
-          .select("_id firstName lastName avatar bio");
-      } catch (err) {
-        return err;
-      }
-    },
-    user: async (parent, args, context) => {
-      try {
-        const user = context.user.sub;
-        return await User.findOne({ _id: user })
-          .lean()
-          .select("_id firstName lastName role avatar bio");
-      } catch (err) {
-        return err;
-      }
-    },
-    inventoryItems: async (parent, args, context) => {
-      try {
-        const user = context.user.sub;
-        return await InventoryItem.find({
-          user: user
-        });
-      } catch (err) {
-        return err;
-      }
-    },
-    userBio: async (parent, args, context) => {
-      try {
-        const user = context.user.sub;
-        const foundUser = await User.findOne({
-          _id: user
-        })
-          .lean()
-          .select("bio");
-
-        return { bio: foundUser.bio };
-      } catch (err) {
-        return err;
-      }
+    if (!user) {
+      return res.status(403).json({
+        message: 'Wrong email or password.'
+      });
     }
-  },
-  Mutation: {
-    login: async (parent, args) => {
-      try {
-        const { email, password } = args;
 
-        const user = await User.findOne({
-          email
-        }).lean();
+    const passwordValid = await verifyPassword(
+      password,
+      user.password
+    );
 
-        if (!user) {
-          throw new UserInputError("Wrong email or password");
-        }
+    if (passwordValid) {
+      const { password, bio, ...rest } = user;
+      const userInfo = Object.assign({}, { ...rest });
 
-        const passwordValid = await verifyPassword(password, user.password);
+      const token = createToken(userInfo);
 
-        if (passwordValid) {
-          const { password, bio, ...rest } = user;
-          const userInfo = Object.assign({}, { ...rest });
+      const decodedToken = jwtDecode(token);
+      const expiresAt = decodedToken.exp;
 
-          const token = createToken(userInfo);
-
-          const decodedToken = jwtDecode(token);
-          const expiresAt = decodedToken.exp;
-
-          return {
-            message: "Authentication successful!",
-            token,
-            userInfo,
-            expiresAt
-          };
-        } else {
-          throw new UserInputError("Wrong email or password");
-        }
-      } catch (err) {
-        return err;
-      }
-    },
-    signup: async (parent, args) => {
-      try {
-        const { firstName, lastName, email, password } = args;
-
-        const hashedPassword = await hashPassword(password);
-
-        const userData = {
-          email: email.toLowerCase(),
-          firstName,
-          lastName,
-          password: hashedPassword,
-          role: "admin"
-        };
-
-        const existingEmail = await User.findOne({
-          email: userData.email
-        }).lean();
-
-        if (existingEmail) {
-          throw new ApolloError("Email already exists");
-        }
-
-        const newUser = new User(userData);
-        const savedUser = await newUser.save();
-
-        if (savedUser) {
-          const token = createToken(savedUser);
-          const decodedToken = jwtDecode(token);
-          const expiresAt = decodedToken.exp;
-
-          const { _id, firstName, lastName, email, role } = savedUser;
-
-          const userInfo = {
-            _id,
-            firstName,
-            lastName,
-            email,
-            role
-          };
-
-          return {
-            message: "User created!",
-            token,
-            userInfo,
-            expiresAt
-          };
-        } else {
-          throw new ApolloError("There was a problem creating your account");
-        }
-      } catch (err) {
-        return err;
-      }
-    },
-    addInventoryItem: async (parent, args, context) => {
-      try {
-        const user = context.user.sub;
-        const input = Object.assign({}, args, {
-          user: user
-        });
-        const inventoryItem = new InventoryItem(input);
-        const inventoryItemResult = await inventoryItem.save();
-        return {
-          message: "Invetory item created!",
-          inventoryItem: inventoryItemResult
-        };
-      } catch (err) {
-        return err;
-      }
-    },
-    deleteInventoryItem: async (parent, args, context) => {
-      try {
-        const user = context.user.sub;
-        const { id } = args;
-        const deletedItem = await InventoryItem.findOneAndDelete({
-          _id: id,
-          user: user
-        });
-        return {
-          message: "Inventory item deleted!",
-          inventoryItem: deletedItem
-        };
-      } catch (err) {
-        return err;
-      }
-    },
-    updateUserRole: async (parent, args, context) => {
-      try {
-        const user = context.user.sub;
-        const { role } = args;
-        const allowedRoles = ["user", "admin"];
-
-        if (!allowedRoles.includes(role)) {
-          throw new ApolloError("Invalid user role");
-        }
-        const updatedUser = await User.findOneAndUpdate(
-          { _id: user },
-          { role }
-        );
-        return {
-          message:
-            "User role updated. You must log in again for the changes to take effect.",
-          user: updatedUser
-        };
-      } catch (err) {
-        return err;
-      }
-    },
-    updateUserBio: async (parent, args, context) => {
-      try {
-        const user = context.user.sub;
-        const { bio } = args;
-        const updatedUser = await User.findOneAndUpdate(
-          {
-            _id: user
-          },
-          {
-            bio
-          },
-          {
-            new: true
-          }
-        );
-
-        return {
-          message: "Bio updated!",
-          userBio: {
-            bio: updatedUser.bio
-          }
-        };
-      } catch (err) {
-        return err;
-      }
+      res.json({
+        message: 'Authentication successful!',
+        token,
+        userInfo,
+        expiresAt
+      });
+    } else {
+      res.status(403).json({
+        message: 'Wrong email or password.'
+      });
     }
+  } catch (err) {
+    console.log(err);
+    return res
+      .status(400)
+      .json({ message: 'Something went wrong.' });
+  }
+});
+
+app.post('/api/signup', async (req, res) => {
+  try {
+    const { email, firstName, lastName } = req.body;
+
+    const hashedPassword = await hashPassword(
+      req.body.password
+    );
+
+    const userData = {
+      email: email.toLowerCase(),
+      firstName,
+      lastName,
+      password: hashedPassword,
+      role: 'admin'
+    };
+
+    const existingEmail = await User.findOne({
+      email: userData.email
+    }).lean();
+
+    if (existingEmail) {
+      return res
+        .status(400)
+        .json({ message: 'Email already exists' });
+    }
+
+    const newUser = new User(userData);
+    const savedUser = await newUser.save();
+
+    if (savedUser) {
+      const token = createToken(savedUser);
+      const decodedToken = jwtDecode(token);
+      const expiresAt = decodedToken.exp;
+
+      const {
+        firstName,
+        lastName,
+        email,
+        role
+      } = savedUser;
+
+      const userInfo = {
+        firstName,
+        lastName,
+        email,
+        role
+      };
+
+      return res.json({
+        message: 'User created!',
+        token,
+        userInfo,
+        expiresAt
+      });
+    } else {
+      return res.status(400).json({
+        message: 'There was a problem creating your account'
+      });
+    }
+  } catch (err) {
+    return res.status(400).json({
+      message: 'There was a problem creating your account'
+    });
+  }
+});
+
+const attachUser = (req, res, next) => {
+  const token = req.headers.authorization;
+  if (!token) {
+    return res
+      .status(401)
+      .json({ message: 'Authentication invalid' });
+  }
+  const decodedToken = jwtDecode(token.slice(7));
+
+  if (!decodedToken) {
+    return res.status(401).json({
+      message: 'There was a problem authorizing the request'
+    });
+  } else {
+    req.user = decodedToken;
+    next();
   }
 };
 
-const typeDefs = gql`
-  directive @auth(requires: [Role] = [ADMIN]) on OBJECT | FIELD_DEFINITION
+app.use(attachUser);
 
-  enum Role {
-    ADMIN
-    USER
+const requireAuth = jwt({
+  secret: process.env.JWT_SECRET,
+  audience: 'api.orbit',
+  issuer: 'api.orbit'
+});
+
+const requireAdmin = (req, res, next) => {
+  const { role } = req.user;
+  if (role !== 'admin') {
+    return res
+      .status(401)
+      .json({ message: 'Insufficient role' });
   }
+  next();
+};
 
-  type Sale {
-    date: String!
-    amount: Int!
+app.get('/api/profile', requireAuth, async (req, res) => {
+  try {
+    const user = await User.findOne({ _id: req.user.sub })
+      .lean()
+      .select(
+        '_id firstName lastName avatar email role bio'
+      );
+
+    return res.json({ profile: user });
+  } catch (err) {
+    return res.status(400).json({ error: err });
   }
+});
 
-  type DashboardData {
-    salesVolume: Int!
-    newCustomers: Int!
-    refunds: Int!
-    graphData: [Sale!]!
+app.get('/api/dashboard-data', requireAuth, (req, res) =>
+  res.json(dashboardData)
+);
+
+app.patch('/api/user-role', async (req, res) => {
+  try {
+    const { role } = req.body;
+    const allowedRoles = ['user', 'admin'];
+
+    if (!allowedRoles.includes(role)) {
+      return res
+        .status(400)
+        .json({ message: 'Role not allowed' });
+    }
+    await User.findOneAndUpdate(
+      { _id: req.user.sub },
+      { role }
+    );
+    res.json({
+      message:
+        'User role updated. You must log in again for the changes to take effect.'
+    });
+  } catch (err) {
+    return res.status(400).json({ error: err });
   }
+});
 
-  type User {
-    _id: ID!
-    firstName: String!
-    lastName: String!
-    email: String!
-    role: String!
-    avatar: String
-    bio: String
+app.get(
+  '/api/inventory',
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const user = req.user.sub;
+      const inventoryItems = await InventoryItem.find({
+        user
+      });
+      res.json(inventoryItems);
+    } catch (err) {
+      return res.status(400).json({ error: err });
+    }
   }
+);
 
-  type InventoryItem {
-    _id: ID!
-    user: String!
-    name: String!
-    itemNumber: String!
-    unitPrice: String!
-    image: String!
+app.post(
+  '/api/inventory',
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const userId = req.user.sub;
+      const input = Object.assign({}, req.body, {
+        user: userId
+      });
+      const inventoryItem = new InventoryItem(input);
+      await inventoryItem.save();
+      res.status(201).json({
+        message: 'Inventory item created!',
+        inventoryItem
+      });
+    } catch (err) {
+      return res.status(400).json({
+        message: 'There was a problem creating the item'
+      });
+    }
   }
+);
 
-  type AuthenticationResult {
-    message: String!
-    userInfo: User!
-    token: String!
-    expiresAt: String!
+app.delete(
+  '/api/inventory/:id',
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const deletedItem = await InventoryItem.findOneAndDelete(
+        { _id: req.params.id, user: req.user.sub }
+      );
+      res.status(201).json({
+        message: 'Inventory item deleted!',
+        deletedItem
+      });
+    } catch (err) {
+      return res.status(400).json({
+        message: 'There was a problem deleting the item.'
+      });
+    }
   }
+);
 
-  type InventoryItemResult {
-    message: String!
-    inventoryItem: InventoryItem
-  }
+app.get('/api/users', requireAuth, async (req, res) => {
+  try {
+    const users = await User.find()
+      .lean()
+      .select('_id firstName lastName avatar bio');
 
-  type UserUpdateResult {
-    message: String!
-    user: User!
-  }
-
-  type UserBioUpdateResult {
-    message: String!
-    userBio: UserBio!
-  }
-
-  type UserBio {
-    bio: String!
-  }
-
-  type Query {
-    dashboardData: DashboardData @auth(requires: [USER, ADMIN])
-    users: [User] @auth(requires: [ADMIN])
-    user: User @auth(requires: [USER, ADMIN])
-    inventoryItems: [InventoryItem] @auth(requires: [ADMIN])
-    userBio: UserBio @auth(requires: [USER, ADMIN])
-  }
-
-  type Mutation {
-    login(email: String!, password: String!): AuthenticationResult
-    signup(
-      firstName: String!
-      lastName: String!
-      email: String!
-      password: String!
-    ): AuthenticationResult
-    addInventoryItem(
-      name: String!
-      itemNumber: String!
-      unitPrice: Float!
-    ): InventoryItemResult @auth(requires: [ADMIN])
-    deleteInventoryItem(id: ID!): InventoryItemResult @auth(requires: [ADMIN])
-    updateUserRole(role: String!): UserUpdateResult
-      @auth(requires: [USER, ADMIN])
-    updateUserBio(bio: String!): UserBioUpdateResult
-      @auth(requires: [USER, ADMIN])
-  }
-`;
-
-class AuthDirective extends SchemaDirectiveVisitor {
-  ensureFieldsWrapped(objectType) {
-    if (objectType._authFieldsWrapped) return;
-    objectType._authFieldsWrapped = true;
-
-    const fields = objectType.getFields();
-
-    Object.values(fields).forEach((field) => {
-      const { resolve = defaultFieldResolver } = field;
-      field.resolve = (...args) => {
-        const allowedRoles =
-          field._requiredAuthRoles || objectType._requiredAuthRoles;
-
-        if (!allowedRoles || allowedRoles.length < 1) {
-          return resolve.apply(this, args);
-        }
-
-        const context = args[2];
-        const { user } = context;
-
-        checkUserRole(
-          user,
-          allowedRoles.map((role) => role.toLowerCase())
-        );
-
-        return resolve.apply(this, args);
-      };
+    res.json({
+      users
+    });
+  } catch (err) {
+    return res.status(400).json({
+      message: 'There was a problem getting the users'
     });
   }
+});
 
-  visitObject(objectType) {
-    this.ensureFieldsWrapped(objectType);
-    objectType._requiredAuthRoles = this.args.requires;
+app.get('/api/bio', requireAuth, async (req, res) => {
+  try {
+    const { sub } = req.user;
+    const user = await User.findOne({
+      _id: sub
+    })
+      .lean()
+      .select('bio');
+
+    res.json({
+      bio: user.bio
+    });
+  } catch (err) {
+    return res.status(400).json({
+      message: 'There was a problem updating your bio'
+    });
   }
+});
 
-  visitFieldDefinition(field, details) {
-    this.ensureFieldsWrapped(details.objectType);
-    field._requiredAuthRoles = this.args.requires;
-  }
-}
+app.patch('/api/bio', requireAuth, async (req, res) => {
+  try {
+    const { sub } = req.user;
+    const { bio } = req.body;
+    const updatedUser = await User.findOneAndUpdate(
+      {
+        _id: sub
+      },
+      {
+        bio
+      },
+      {
+        new: true
+      }
+    );
 
-const server = new ApolloServer({
-  typeDefs,
-  schemaDirectives: {
-    auth: AuthDirective
-  },
-  resolvers,
-  context({ req }) {
-    try {
-      const token = req && req.headers.authorization;
-      const user = token
-        ? jwt.verify(token.replace("Bearer ", ""), process.env.JWT_SECRET)
-        : null;
-
-      return { user };
-    } catch (error) {
-      return { user: null };
-    }
+    res.json({
+      message: 'Bio updated!',
+      bio: updatedUser.bio
+    });
+  } catch (err) {
+    return res.status(400).json({
+      message: 'There was a problem updating your bio'
+    });
   }
 });
 
@@ -417,11 +346,10 @@ async function connect() {
       useFindAndModify: false
     });
   } catch (err) {
-    console.log("Mongoose error", err);
+    console.log('Mongoose error', err);
   }
-  server.listen(3001).then(({ url }) => {
-    console.log(`🚀  Server ready at ${url}`);
-  });
+  app.listen(3001);
+  console.log('API listening on localhost:3001');
 }
 
 connect();

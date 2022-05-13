@@ -1,74 +1,53 @@
-import React, {
-  useContext,
-  useState,
-  useEffect
-} from 'react';
-import { useMutation } from '@apollo/react-hooks';
-import { gql } from 'apollo-boost';
+import React, { useContext, useState } from 'react';
 import { Form, Formik } from 'formik';
-import { Redirect } from 'react-router-dom';
+import { navigate } from 'gatsby';
 import * as Yup from 'yup';
-import Card from '../components/common/Card';
-import GradientButton from '../components/common/GradientButton';
 import { AuthContext } from '../context/AuthContext';
-import GradientBar from './../components/common/GradientBar';
-import Hyperlink from './../components/common/Hyperlink';
-import Label from './../components/common/Label';
-import FormError from './../components/FormError';
-import FormInput from './../components/FormInput';
-import FormSuccess from './../components/FormSuccess';
+import { publicFetch } from '../util/fetch';
 import logo from './../images/logo.png';
+import Card from '../components/common/Card';
+import GradientBar from '../components/common/GradientBar';
+import GradientButton from '../components/common/GradientButton';
+import Hyperlink from '../components/common/Hyperlink';
+import Label from '../components/common/Label';
+import FormError from '../components/FormError';
+import FormInput from '../components/FormInput';
+import FormSuccess from '../components/FormSuccess';
+import SEO from '../components/seo';
 
 const LoginSchema = Yup.object().shape({
   email: Yup.string().required('Email is required'),
   password: Yup.string().required('Password is required')
 });
 
-const LOGIN = gql`
-  mutation Login($email: String!, $password: String!) {
-    login(email: $email, password: $password) {
-      message
-      userInfo {
-        _id
-        firstName
-        lastName
-        email
-        role
-        avatar
-        bio
-      }
-      token
-      expiresAt
-    }
-  }
-`;
-
-const ProcessLogin = ({ loginData }) => {
-  const authContext = useContext(AuthContext);
-  const [redirectOnLogin, setRedirectOnLogin] = useState(
-    false
-  );
-
-  useEffect(() => {
-    const { login } = loginData;
-    authContext.setAuthState(login);
-    setRedirectOnLogin(true);
-  }, [authContext, loginData]);
-
-  return (
-    <>{redirectOnLogin && <Redirect to="/dashboard" />}</>
-  );
-};
-
 const Login = () => {
-  const [login, { loading, error, data }] = useMutation(
-    LOGIN
-  );
+  const authContext = useContext(AuthContext);
+  const [loginSuccess, setLoginSuccess] = useState();
+  const [loginError, setLoginError] = useState();
+  const [loginLoading, setLoginLoading] = useState(false);
+
+  const submitCredentials = async credentials => {
+    try {
+      setLoginLoading(true);
+      const { data } = await publicFetch.post(`authenticate`, credentials);
+      console.log('the data', data);
+      authContext.setAuthState(data);
+      setLoginSuccess(data.message);
+      setLoginError(null);
+      setTimeout(() => {
+        navigate('/profile');
+      }, 700);
+    } catch (error) {
+      setLoginLoading(false);
+      const { data } = error.response;
+      setLoginError(data.message);
+      setLoginSuccess(null);
+    }
+  };
 
   return (
     <>
-      {data && <ProcessLogin loginData={data} />}
-
+      <SEO title="Log In" />
       <section className="w-full sm:w-1/2 h-screen m-auto p-8 sm:pt-10">
         <GradientBar />
         <Card>
@@ -83,34 +62,22 @@ const Login = () => {
                 </h2>
                 <p className="text-gray-600 text-center">
                   Don't have an account?{' '}
-                  <Hyperlink
-                    to="signup"
-                    text="Sign up now"
-                  />
+                  <Hyperlink to="signup" text="Sign up now" />
                 </p>
               </div>
+
               <Formik
                 initialValues={{
                   email: '',
                   password: ''
                 }}
-                onSubmit={values =>
-                  login({
-                    variables: { ...values }
-                  })
-                }
+                onSubmit={values => submitCredentials(values)}
                 validationSchema={LoginSchema}
               >
                 {() => (
                   <Form className="mt-8">
-                    {data && (
-                      <FormSuccess
-                        text={data.login.message}
-                      />
-                    )}
-                    {error && (
-                      <FormError text={error.message} />
-                    )}
+                    {loginSuccess && <FormSuccess text={loginSuccess} />}
+                    {loginError && <FormError text={loginError} />}
                     <div>
                       <div className="mb-2">
                         <div className="mb-1">
@@ -149,7 +116,7 @@ const Login = () => {
                       <GradientButton
                         type="submit"
                         text="Log In"
-                        loading={loading}
+                        loading={loginLoading}
                       />
                     </div>
                   </Form>

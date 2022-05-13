@@ -1,28 +1,30 @@
-import React from 'react';
-import { faArrowRight } from '@fortawesome/free-solid-svg-icons';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import React, { useContext } from 'react';
+import { Link } from 'gatsby';
+import GradientLink from '../components/common/GradientLink';
+import { AuthContext } from './../context/AuthContext';
+import logo from './../images/logo.png';
 import AvatarDropdown from './AvatarDropdown';
 
-const SearchInput = () => (
-  <div className="flex">
-    <input
-      className="py-2 px-4 border bg-gray-100 border-gray-300 rounded-full focus:outline-none w-32 sm:w-64"
-      placeholder="Search"
-    />
-    <button className="rounded-full bg-gradient px-4 ml-2 text-white flex items-center text-xs focus:outline-none shadow-lg">
-      <FontAwesomeIcon icon={faArrowRight} />
-    </button>
-  </div>
-);
-
 const Navbar = () => {
+  const auth = useContext(AuthContext);
   return (
-    <nav className="flex justify-between px-4">
-      <div className="">
-        <SearchInput />
-      </div>
-      <div className="">
-        <AvatarDropdown />
+    <nav className="w-full top-0 bg-white px-10 py-5">
+      <div className="flex justify-between">
+        <Link to="/">
+          <img className="w-32 h-full" src={logo} alt="Logo" />
+        </Link>
+        <div className="flex items-center z-10">
+          {auth && auth.isAuthenticated() ? (
+            <AvatarDropdown />
+          ) : (
+            <>
+              <Link to="/signup" className="text-blue-700 mr-6">
+                Sign Up
+              </Link>
+              <GradientLink to="/login" text="Log In" />
+            </>
+          )}
+        </div>
       </div>
     </nav>
   );
