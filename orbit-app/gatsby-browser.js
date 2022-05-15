@@ -6,3 +6,14 @@
 
 // You can delete this file if you're not using it
 import './src/css/index.css';
+import React from 'react';
+import { AuthProvider } from './src/context/AuthContext';
+import { FetchProvider } from './src/context/FetchContext';
+
+export function wrapRootElement({ element }) {
+  return (
+    <AuthProvider>
+      <FetchProvider>{element}</FetchProvider>
+    </AuthProvider>
+  );
+}
