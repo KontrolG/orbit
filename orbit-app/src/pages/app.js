@@ -1,13 +1,28 @@
 import React from 'react';
 import { Router } from '@reach/router';
 import Profile from '../components/profile';
-import { AuthProvider } from '../context/AuthContext';
+import { AuthContext, AuthProvider } from '../context/AuthContext';
 import { FetchProvider } from '../context/FetchContext';
+import { useContext } from 'react';
+import { navigate } from 'gatsby';
+
+function PrivateRoute({ component: Component, ...restProps }) {
+  const { authState, isAuthenticated } = useContext(AuthContext);
+
+  if (!authState) return null;
+
+  if (!isAuthenticated()) {
+    navigate('/login');
+    return null;
+  }
+
+  return <Component {...restProps} />;
+}
 
 function AppRoutes() {
   return (
     <Router basepath="/app">
-      <Profile path="/profile" />
+      <PrivateRoute component={Profile} path="/profile" />
     </Router>
   );
 }
