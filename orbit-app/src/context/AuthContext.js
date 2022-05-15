@@ -39,7 +39,7 @@ const AuthProvider = ({ children }) => {
     localStorage.removeItem('token');
     localStorage.removeItem('userInfo');
     localStorage.removeItem('expiresAt');
-    navigate('/login');
+    navigate('/app/login');
     setAuthState({});
   };
 

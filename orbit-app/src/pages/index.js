@@ -26,7 +26,7 @@ const Home = () => {
               Take the pain out of managing your sales data
             </h2>
             <div className="mt-4 sm:mt-10 w-48">
-              <GradientLink text="Get Started" size="lg" to="signup" />
+              <GradientLink text="Get Started" size="lg" to="/app/signup" />
             </div>
           </div>
         </div>

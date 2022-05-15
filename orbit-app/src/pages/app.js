@@ -5,6 +5,8 @@ import { AuthContext, AuthProvider } from '../context/AuthContext';
 import { FetchProvider } from '../context/FetchContext';
 import { useContext } from 'react';
 import { navigate } from 'gatsby';
+import Login from '../components/login';
+import Signup from '../components/signup';
 
 function PrivateRoute({ component: Component, ...restProps }) {
   const { authState, isAuthenticated } = useContext(AuthContext);
@@ -12,7 +14,7 @@ function PrivateRoute({ component: Component, ...restProps }) {
   if (!authState) return null;
 
   if (!isAuthenticated()) {
-    navigate('/login');
+    navigate('/app/login');
     return null;
   }
 
@@ -23,6 +25,8 @@ function AppRoutes() {
   return (
     <Router basepath="/app">
       <PrivateRoute component={Profile} path="/profile" />
+      <Login path="/login" />
+      <Signup path="/signup" />
     </Router>
   );
 }

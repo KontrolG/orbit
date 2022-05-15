@@ -5,15 +5,15 @@ import * as Yup from 'yup';
 import { AuthContext } from '../context/AuthContext';
 import { publicFetch } from '../util/fetch';
 import logo from './../images/logo.png';
-import Card from '../components/common/Card';
-import GradientBar from '../components/common/GradientBar';
-import GradientButton from '../components/common/GradientButton';
-import Hyperlink from '../components/common/Hyperlink';
-import Label from '../components/common/Label';
-import FormError from '../components/FormError';
-import FormInput from '../components/FormInput';
-import FormSuccess from '../components/FormSuccess';
-import SEO from '../components/seo';
+import Card from './common/Card';
+import GradientBar from './common/GradientBar';
+import GradientButton from './common/GradientButton';
+import Hyperlink from './common/Hyperlink';
+import Label from './common/Label';
+import FormError from './FormError';
+import FormInput from './FormInput';
+import FormSuccess from './FormSuccess';
+import SEO from './seo';
 
 const LoginSchema = Yup.object().shape({
   email: Yup.string().required('Email is required'),
@@ -62,7 +62,7 @@ const Login = () => {
                 </h2>
                 <p className="text-gray-600 text-center">
                   Don't have an account?{' '}
-                  <Hyperlink to="signup" text="Sign up now" />
+                  <Hyperlink to="/app/signup" text="Sign up now" />
                 </p>
               </div>
 

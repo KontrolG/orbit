@@ -18,10 +18,10 @@ const Navbar = () => {
             <AvatarDropdown />
           ) : (
             <>
-              <Link to="/signup" className="text-blue-700 mr-6">
+              <Link to="/app/signup" className="text-blue-700 mr-6">
                 Sign Up
               </Link>
-              <GradientLink to="/login" text="Log In" />
+              <GradientLink to="/app/login" text="Log In" />
             </>
           )}
         </div>
