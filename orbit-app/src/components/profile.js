@@ -2,10 +2,10 @@ import React, { useContext, useEffect, useState } from 'react';
 import classnames from 'classnames';
 import { FetchContext } from '../context/FetchContext';
 import defaultAvatar from './../images/defaultAvatar.png';
-import Card from '../components/common/Card';
-import GradientBar from '../components/common/GradientBar';
-import Layout from '../components/layout';
-import SEO from '../components/seo';
+import Card from './common/Card';
+import GradientBar from './common/GradientBar';
+import Layout from './layout';
+import SEO from './seo';
 
 const RoleTag = ({ role }) => {
   const className = classnames({

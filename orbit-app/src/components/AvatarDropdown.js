@@ -40,7 +40,7 @@ const AvatarDropdown = () => {
     {
       title: 'Profile',
       icon: faUser,
-      onClick: () => navigate('/profile')
+      onClick: () => navigate('/app/profile')
     },
     {
       title: 'Log Out',

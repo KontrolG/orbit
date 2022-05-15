@@ -38,7 +38,7 @@ const Signup = () => {
       setSignupError('');
 
       setTimeout(() => {
-        navigate('/profile');
+        navigate('/app/profile');
       }, 700);
     } catch (error) {
       setLoginLoading(false);

@@ -35,7 +35,7 @@ const Login = () => {
       setLoginSuccess(data.message);
       setLoginError(null);
       setTimeout(() => {
-        navigate('/profile');
+        navigate('/app/profile');
       }, 700);
     } catch (error) {
       setLoginLoading(false);

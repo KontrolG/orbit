@@ -35,6 +35,10 @@ module.exports = {
         fonts: [`Noto Sans JP\:400,700`],
         display: 'swap'
       }
+    },
+    {
+      resolve: `gatsby-plugin-create-client-paths`,
+      options: { prefixes: [`/app/*`] }
     }
   ]
 };
