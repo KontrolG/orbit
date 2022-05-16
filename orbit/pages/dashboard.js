@@ -1,39 +1,26 @@
-import React, {
-  useState,
-  useContext,
-  useEffect
-} from 'react';
-import PageTitle from '../components/common/PageTitle';
-import DashboardMetric from './../components/DashboardMetric';
-import Card from '../components/common/Card';
+import React from "react";
+import PageTitle from "../components/common/PageTitle";
+import DashboardMetric from "./../components/DashboardMetric";
+import Card from "../components/common/Card";
 import {
   faChartArea,
   faDollarSign,
   faUserPlus
-} from '@fortawesome/free-solid-svg-icons';
-import { FetchContext } from '../context/FetchContext';
-import { formatCurrency } from './../util';
-import DashboardChart from './../components/DashboardChart';
+} from "@fortawesome/free-solid-svg-icons";
+import { formatCurrency } from "./../util";
+import DashboardChart from "./../components/DashboardChart";
+import { privateFetch } from "../util/fetch";
 
-const Dashboard = () => {
-  const fetchContext = useContext(FetchContext);
-  const [dashboardData, setDashboardData] = useState();
+export async function getServerSideProps(context) {
+  try {
+    const response = await privateFetch(context).get("/dashboard-data");
+    return { props: { dashboardData: response.data } };
+  } catch (error) {
+    return { props: { dashboardData: null } };
+  }
+}
 
-  useEffect(() => {
-    const getDashboardData = async () => {
-      try {
-        const { data } = await fetchContext.authAxios.get(
-          'dashboard-data'
-        );
-        setDashboardData(data);
-      } catch (err) {
-        console.log(err);
-      }
-    };
-
-    getDashboardData();
-  }, [fetchContext]);
-
+const Dashboard = ({ dashboardData }) => {
   return (
     <>
       <PageTitle title="Dashboard" />
@@ -43,9 +30,7 @@ const Dashboard = () => {
             <div className="w-full sm:w-1/3 sm:mr-2 mb-4 sm:mb-0">
               <DashboardMetric
                 title="Sales Volume"
-                value={formatCurrency(
-                  dashboardData.salesVolume
-                )}
+                value={formatCurrency(dashboardData.salesVolume)}
                 icon={faChartArea}
               />
             </div>
@@ -59,9 +44,7 @@ const Dashboard = () => {
             <div className="w-full sm:w-1/3 sm:ml-2 mb-4 sm:mb-0">
               <DashboardMetric
                 title="Refunds"
-                value={formatCurrency(
-                  dashboardData.refunds
-                )}
+                value={formatCurrency(dashboardData.refunds)}
                 icon={faDollarSign}
               />
             </div>
@@ -69,9 +52,7 @@ const Dashboard = () => {
           <div className="w-full mt-4">
             <Card>
               {dashboardData && (
-                <DashboardChart
-                  salesData={dashboardData.graphData}
-                />
+                <DashboardChart salesData={dashboardData.graphData} />
               )}
             </Card>
           </div>
