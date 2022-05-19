@@ -1,47 +1,30 @@
-import React, { lazy, Suspense, useContext } from "react";
-import { ApolloProvider } from "@apollo/react-hooks";
-import ApolloClient from "apollo-boost";
+import React, { lazy, Suspense, useContext } from 'react';
 import {
   BrowserRouter as Router,
-  Redirect,
   Route,
-  Switch
-} from "react-router-dom";
-import "./App.css";
-import AppShell from "./AppShell";
-import { AuthContext, AuthProvider } from "./context/AuthContext";
-import FourOFour from "./pages/FourOFour";
-import Home from "./pages/Home";
-import Login from "./pages/Login";
-import Signup from "./pages/Signup";
+  Switch,
+  Redirect
+} from 'react-router-dom';
+import './App.css';
 
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Inventory = lazy(() => import("./pages/Inventory"));
-const Account = lazy(() => import("./pages/Account"));
-const Settings = lazy(() => import("./pages/Settings"));
-const Users = lazy(() => import("./pages/Users"));
+import {
+  AuthProvider,
+  AuthContext
+} from './context/AuthContext';
+import { FetchProvider } from './context/FetchContext';
 
-const client = new ApolloClient({
-  uri: process.env.REACT_APP_GRAPHQL_URI,
-  request(operation) {
-    const token = localStorage.getItem("token");
-    if (!token) return;
+import AppShell from './AppShell';
 
-    operation.setContext({
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    });
-  },
-  onError({ graphQLErrors }) {
-    if (graphQLErrors.length < 1) return;
-    const unauthorizedErrors = graphQLErrors.filter(
-      (error) => error.extensions.code === "UNAUTHENTICATED"
-    );
-    if (unauthorizedErrors.length < 1) return;
-    window.location = "/login";
-  }
-});
+import Home from './pages/Home';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
+import FourOFour from './pages/FourOFour';
+
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Inventory = lazy(() => import('./pages/Inventory'));
+const Account = lazy(() => import('./pages/Account'));
+const Settings = lazy(() => import('./pages/Settings'));
+const Users = lazy(() => import('./pages/Users'));
 
 const LoadingFallback = () => (
   <AppShell>
@@ -115,9 +98,9 @@ const AppRoutes = () => {
           <AuthenticatedRoute path="/settings">
             <Settings />
           </AuthenticatedRoute>
-          <AdminRoute path="/users">
+          <AuthenticatedRoute path="/users">
             <Users />
-          </AdminRoute>
+          </AuthenticatedRoute>
           <UnauthenticatedRoutes />
         </Switch>
       </Suspense>
@@ -127,15 +110,15 @@ const AppRoutes = () => {
 
 function App() {
   return (
-    <ApolloProvider client={client}>
-      <Router>
-        <AuthProvider>
+    <Router>
+      <AuthProvider>
+        <FetchProvider>
           <div className="bg-gray-100">
             <AppRoutes />
           </div>
-        </AuthProvider>
-      </Router>
-    </ApolloProvider>
+        </FetchProvider>
+      </AuthProvider>
+    </Router>
   );
 }
 

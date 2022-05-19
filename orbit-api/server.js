@@ -172,20 +172,6 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-app.get('/api/profile', requireAuth, async (req, res) => {
-  try {
-    const user = await User.findOne({ _id: req.user.sub })
-      .lean()
-      .select(
-        '_id firstName lastName avatar email role bio'
-      );
-
-    return res.json({ profile: user });
-  } catch (err) {
-    return res.status(400).json({ error: err });
-  }
-});
-
 app.get('/api/dashboard-data', requireAuth, (req, res) =>
   res.json(dashboardData)
 );

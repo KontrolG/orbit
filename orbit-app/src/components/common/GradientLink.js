@@ -1,6 +1,6 @@
 import React from 'react';
 import classNames from 'classnames';
-import { Link } from 'gatsby';
+import { Link } from 'react-router-dom';
 
 const GradientLink = ({ to, text, size }) => {
   const classes = classNames({

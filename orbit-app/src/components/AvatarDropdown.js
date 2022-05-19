@@ -1,16 +1,22 @@
-import React, { useContext, useEffect, useRef, useState } from 'react';
+import React, {
+  useContext,
+  useEffect,
+  useRef,
+  useState
+} from 'react';
 import {
   faCaretDown,
-  faSignOutAlt,
-  faUser
+  faSignOutAlt
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { AuthContext } from './../context/AuthContext';
 import defaultAvatar from './../images/defaultAvatar.png';
-import { navigate } from 'gatsby';
 
 const DropdownItem = ({ item }) => (
-  <button className="text-gray-700 flex items-center" onClick={item.onClick}>
+  <button
+    className="text-gray-700 flex items-center"
+    onClick={item.onClick}
+  >
     <FontAwesomeIcon icon={item.icon} />
     <p className="ml-2">{item.title}</p>
   </button>
@@ -38,11 +44,6 @@ const AvatarDropdown = () => {
 
   const dropdownItems = [
     {
-      title: 'Profile',
-      icon: faUser,
-      onClick: () => navigate('/app/profile')
-    },
-    {
       title: 'Log Out',
       icon: faSignOutAlt,
       onClick: auth.logout
@@ -59,31 +60,34 @@ const AvatarDropdown = () => {
     document.addEventListener('mousedown', handleClick);
 
     return () => {
-      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener(
+        'mousedown',
+        handleClick
+      );
     };
   }, []);
 
   return (
     <div ref={node}>
-      {authState.userInfo && (
-        <button
-          ref={node}
-          className="flex rounded-full items-center py-2 px-3 bg-gradient focus:outline-none shadow-lg"
-          onClick={() => setDropdownOpen(!dropdownOpen)}
-        >
-          <img
-            src={authState.userInfo.avatar || defaultAvatar}
-            className="rounded-full w-6 border-2 border-white"
-            alt="Avatar"
-          />
-          <div className="px-3">
-            <p className="text-white">{authState.userInfo.firstName}</p>
-          </div>
-          <div className="mr-1 text-white">
-            <FontAwesomeIcon icon={faCaretDown} />
-          </div>
-        </button>
-      )}
+      <button
+        ref={node}
+        className="flex rounded-full items-center py-2 px-3 bg-gradient focus:outline-none shadow-lg"
+        onClick={() => setDropdownOpen(!dropdownOpen)}
+      >
+        <img
+          src={authState.userInfo.avatar || defaultAvatar}
+          className="rounded-full w-6 border-2 border-white"
+          alt="Avatar"
+        />
+        <div className="px-3">
+          <p className="text-white">
+            {authState.userInfo.firstName}
+          </p>
+        </div>
+        <div className="mr-1 text-white">
+          <FontAwesomeIcon icon={faCaretDown} />
+        </div>
+      </button>
 
       {dropdownOpen && (
         <div className="relative">
