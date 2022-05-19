@@ -9,7 +9,7 @@ const FetchProvider = ({ children }) => {
   const authContext = useContext(AuthContext);
 
   const authAxios = axios.create({
-    baseURL: process.env.GATSBY_API_URL
+    baseURL: process.env.REACT_APP_API_URL
   });
 
   authAxios.interceptors.request.use(
@@ -27,7 +27,8 @@ const FetchProvider = ({ children }) => {
       return response;
     },
     error => {
-      const code = error && error.response ? error.response.status : 0;
+      const code =
+        error && error.response ? error.response.status : 0;
       if (code === 401 || code === 403) {
         console.log('error code', code);
       }
