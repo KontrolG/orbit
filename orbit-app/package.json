@@ -51,5 +51,6 @@
     "autoprefixer": "^9.7.6",
     "postcss-cli": "^7.1.1",
     "tailwindcss": "^1.4.6"
-  }
+  },
+  "proxy": "https://serverless-integration--vermillion-choux-8de717.netlify.app/.netlify/functions/"
 }

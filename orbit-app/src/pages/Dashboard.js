@@ -23,7 +23,7 @@ const Dashboard = () => {
     const getDashboardData = async () => {
       try {
         const { data } = await fetchContext.authAxios.get(
-          'dashboard-data'
+          'get-dashboard-data'
         );
         setDashboardData(data);
       } catch (err) {
