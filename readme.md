@@ -1,21 +1,11 @@
 # ReactSecurity - Orbit
 
-<p>
-  <a href="https://twitter.com/ryanchenkie" target="_blank">
-    <img alt="Twitter: ryanchenkie" src="https://img.shields.io/twitter/follow/ryanchenkie.svg?style=social" />
-  </a>
-</p>
-
 👋 Welcome to Orbit! This is a demo app for learning security for React applications. You can find out more at [ReactSecurity.io](https://reactsecurity.io).
 
 ## A Look at the App
 
 Here's the dashboard for the app
 ![orbit dashboard](./images/orbit-dashboard.png)
-
-For a more in-depth tour, check out this video:
-
-[![orbit tour](./images/orbit-tour.jpg)](https://www.youtube.com/watch?v=cTAizIOENZw)
 
 There are two parts to the app in this project: **orbit-app** and **orbit-api**. These are the front end React application and the backend Node API respectively.
 
