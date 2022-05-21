@@ -71,7 +71,7 @@ const Inventory = () => {
     const getInventory = async () => {
       try {
         const { data } = await fetchContext.authAxios.get(
-          'inventory'
+          'get-inventory-items'
         );
         setInventory(data);
       } catch (err) {
