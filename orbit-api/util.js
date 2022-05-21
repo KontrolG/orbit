@@ -70,10 +70,17 @@ async function checkAuth(event) {
   }
 }
 
+async function checkRole(user = {}, roles = []) {
+  if (!user.role || !roles.includes(user.role)) {
+    throw new Error("Insufficient role");
+  }
+}
+
 module.exports = {
   createToken,
   hashPassword,
   verifyPassword,
   requireAdmin,
-  checkAuth
+  checkAuth,
+  checkRole
 };
