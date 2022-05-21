@@ -1,30 +1,47 @@
-import React, { lazy, Suspense, useContext } from 'react';
+import React, { lazy, Suspense, useContext } from "react";
+import { ApolloProvider } from "@apollo/react-hooks";
+import ApolloClient from "apollo-boost";
 import {
   BrowserRouter as Router,
+  Redirect,
   Route,
-  Switch,
-  Redirect
-} from 'react-router-dom';
-import './App.css';
+  Switch
+} from "react-router-dom";
+import "./App.css";
+import AppShell from "./AppShell";
+import { AuthContext, AuthProvider } from "./context/AuthContext";
+import FourOFour from "./pages/FourOFour";
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
 
-import {
-  AuthProvider,
-  AuthContext
-} from './context/AuthContext';
-import { FetchProvider } from './context/FetchContext';
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Inventory = lazy(() => import("./pages/Inventory"));
+const Account = lazy(() => import("./pages/Account"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Users = lazy(() => import("./pages/Users"));
 
-import AppShell from './AppShell';
+const client = new ApolloClient({
+  uri: process.env.REACT_APP_GRAPHQL_URI,
+  request(operation) {
+    const token = localStorage.getItem("token");
+    if (!token) return;
 
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
-import FourOFour from './pages/FourOFour';
-
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const Inventory = lazy(() => import('./pages/Inventory'));
-const Account = lazy(() => import('./pages/Account'));
-const Settings = lazy(() => import('./pages/Settings'));
-const Users = lazy(() => import('./pages/Users'));
+    operation.setContext({
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+  },
+  onError({ graphQLErrors }) {
+    if (graphQLErrors.length < 1) return;
+    const unauthorizedErrors = graphQLErrors.filter(
+      (error) => error.extensions.code === "UNAUTHENTICATED"
+    );
+    if (unauthorizedErrors.length < 1) return;
+    window.location = "/login";
+  }
+});
 
 const LoadingFallback = () => (
   <AppShell>
@@ -98,9 +115,9 @@ const AppRoutes = () => {
           <AuthenticatedRoute path="/settings">
             <Settings />
           </AuthenticatedRoute>
-          <AuthenticatedRoute path="/users">
+          <AdminRoute path="/users">
             <Users />
-          </AuthenticatedRoute>
+          </AdminRoute>
           <UnauthenticatedRoutes />
         </Switch>
       </Suspense>
@@ -110,15 +127,15 @@ const AppRoutes = () => {
 
 function App() {
   return (
-    <Router>
-      <AuthProvider>
-        <FetchProvider>
+    <ApolloProvider client={client}>
+      <Router>
+        <AuthProvider>
           <div className="bg-gray-100">
             <AppRoutes />
           </div>
-        </FetchProvider>
-      </AuthProvider>
-    </Router>
+        </AuthProvider>
+      </Router>
+    </ApolloProvider>
   );
 }
 

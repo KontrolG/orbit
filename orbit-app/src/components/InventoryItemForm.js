@@ -22,7 +22,7 @@ const InventoryItemForm = ({ onSubmit }) => {
         unitPrice: ''
       }}
       onSubmit={(values, { resetForm }) =>
-        onSubmit(values, resetForm)
+        onSubmit({ variables: { ...values } }, resetForm)
       }
       validationSchema={InventoryItemSchema}
       validateOnBlur={false}

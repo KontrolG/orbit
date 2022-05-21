@@ -9,7 +9,7 @@ const FetchProvider = ({ children }) => {
   const authContext = useContext(AuthContext);
 
   const authAxios = axios.create({
-    baseURL: process.env.REACT_APP_SERVERLESS_API_URL
+    baseURL: process.env.GATSBY_API_URL
   });
 
   authAxios.interceptors.request.use(
