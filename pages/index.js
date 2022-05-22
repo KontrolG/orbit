@@ -1,8 +1,8 @@
-import React, { useContext } from 'react';
-import Link from 'next/link';
-import { AuthContext } from './../context/AuthContext';
-import GradientLink from '../components/common/GradientLink';
-import GradientBar from '../components/common/GradientBar';
+import React, { useContext } from "react";
+import Link from "next/link";
+import { AuthContext } from "./../context/AuthContext";
+import GradientLink from "../components/common/GradientLink";
+import GradientBar from "../components/common/GradientBar";
 
 const Home = () => {
   const auth = useContext(AuthContext);
@@ -12,11 +12,7 @@ const Home = () => {
       <GradientBar />
       <div className="w-full top-0 bg-white px-10 py-5">
         <div className="flex justify-between">
-          <img
-            className="w-32 h-full"
-            src="/logo.png"
-            alt="Logo"
-          />
+          <img className="w-32 h-full" src="/logo.png" alt="Logo" />
           <div className="flex items-center">
             <Link href="/signup">
               <a className="text-blue-700 mr-6">Sign Up</a>
@@ -24,8 +20,11 @@ const Home = () => {
             <GradientLink
               to={
                 auth.isAuthenticated()
-                  ? '/dashboard'
-                  : '/login'
+                  ? "/dashboard"
+                  : {
+                      pathname: "/api/auth/login",
+                      query: { returnTo: "/dashboard" }
+                    }
               }
               text="Log In"
             />
@@ -52,11 +51,7 @@ const Home = () => {
               <GradientLink
                 text="Get Started"
                 size="lg"
-                to={
-                  auth.isAuthenticated()
-                    ? '/dashboard'
-                    : '/login'
-                }
+                to={auth.isAuthenticated() ? "/dashboard" : "/login"}
               />
             </div>
           </div>
