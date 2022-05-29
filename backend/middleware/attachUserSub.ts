@@ -1,4 +1,4 @@
-import { namespace } from "api/constants/keys";
+import { namespace } from "backend/constants/keys";
 import nextConnect from "next-connect";
 import jwt from "jsonwebtoken";
 import { Session } from "@auth0/nextjs-auth0";
