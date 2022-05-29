@@ -14,7 +14,7 @@ export default {
       const missingVariablesKeys = missingVariables.map(([key]) => key);
 
       throw new Error(
-        `The config variables "${new Intl.ListFormat("en", {
+        `The config variables "${new (Intl as any).ListFormat("en", {
           style: "long",
           type: "conjunction"
         }).format(missingVariablesKeys)}" are not defined in .env file.`
