@@ -4,6 +4,7 @@ import checkSessionScope, {
   AuthzOptions,
   AuthzScopes
 } from "express-jwt-authz";
+import { NextApiRequestWithSession } from "./attachUserSub";
 
 const requireScope = (
   expectedScopes: AuthzScopes,
@@ -22,5 +23,7 @@ const requireScope = (
         failWithError: true // Required to prevent "res.append is not a function" error.
       })
     );
+
+export type { NextApiRequestWithSession };
 
 export default requireScope;
