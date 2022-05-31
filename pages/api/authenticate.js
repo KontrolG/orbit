@@ -1,6 +1,6 @@
 import nextConnect from 'next-connect';
 import * as jwtDecode from 'jwt-decode';
-import database from './middleware/database';
+import database from '../../backend/middleware/database';
 import {
   createToken,
   setTokenCookie,

@@ -1,6 +1,6 @@
 import nextConnect from 'next-connect';
-import database from './middleware/database';
-import authorize from './middleware/authorize';
+import database from '../../backend/middleware/database';
+import authorize from 'backend/middleware/authorize';
 import { ObjectId } from 'mongodb';
 
 const handler = nextConnect();

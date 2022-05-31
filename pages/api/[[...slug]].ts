@@ -1,7 +1,7 @@
 import requireScope from "backend/middleware/requireScope";
 import { NextApiRequest, NextApiResponse } from "next";
 import nextConnect from "next-connect";
-import * as dashboardData from "./data/dashboard";
+import * as dashboardData from "../../backend/data/dashboard";
 import prisma from "backend/prisma";
 
 const app = nextConnect();

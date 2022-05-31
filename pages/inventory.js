@@ -143,8 +143,8 @@ export async function getServerSideProps(context) {
     );
     return { props: { data } };
   } catch (err) {
-    const { data } = err.response;
-    return { props: { data: { error: data.message } } };
+    const error = err?.response?.data?.message || "Something went wrong";
+    return { props: { data: { error } } };
   }
 }
 
