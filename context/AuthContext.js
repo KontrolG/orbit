@@ -24,11 +24,10 @@ const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await publicFetch.delete("logout");
       window.localStorage.removeItem("userInfo");
       window.localStorage.removeItem("expiresAt");
       setAuthState({ userInfo: null });
-      router.push("/login");
+      window.location = "/api/auth/logout";
     } catch (err) {
       return err;
     }
