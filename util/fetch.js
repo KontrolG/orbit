@@ -1,16 +1,17 @@
-import axios from 'axios';
+import axios from "axios";
 
 const publicFetch = axios.create({
-  baseURL: process.env.NEXT_API_URL
+  baseURL: process.env.NEXT_PUBLIC_API_URL
 });
 
 // const privateFetch = axios.create({
-//   baseURL: process.env.NEXT_API_URL
+//   baseURL: process.env.NEXT_PUBLIC_API_URL
 // });
 
-const privateFetch = context =>
-  axios.create({
-    baseURL: process.env.NEXT_API_URL,
+const privateFetch = (context) => {
+  console.log("API", process.env.NEXT_PUBLIC_API_URL);
+  return axios.create({
+    baseURL: process.env.NEXT_PUBLIC_API_URL,
     headers:
       context &&
       context.req &&
@@ -19,5 +20,6 @@ const privateFetch = context =>
         ? { cookie: context.req.headers.cookie }
         : undefined
   });
+};
 
 export { publicFetch, privateFetch };
