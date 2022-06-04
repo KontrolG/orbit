@@ -8,9 +8,8 @@ const publicFetch = axios.create({
 //   baseURL: process.env.NEXT_PUBLIC_API_URL
 // });
 
-const privateFetch = (context) => {
-  console.log("API", process.env.NEXT_PUBLIC_API_URL);
-  return axios.create({
+const privateFetch = (context) =>
+  axios.create({
     baseURL: process.env.NEXT_PUBLIC_API_URL,
     headers:
       context &&
@@ -20,6 +19,5 @@ const privateFetch = (context) => {
         ? { cookie: context.req.headers.cookie }
         : undefined
   });
-};
 
 export { publicFetch, privateFetch };

@@ -16,6 +16,7 @@ export async function getServerSideProps(context) {
     const response = await privateFetch(context).get("/dashboard-data");
     return { props: { dashboardData: response.data } };
   } catch (error) {
+    console.log(error?.response || error);
     return { props: { dashboardData: null } };
   }
 }

@@ -106,6 +106,7 @@ export async function getServerSideProps(context) {
     const { data } = await privateFetch(context).get("inventory");
     return { props: { data } };
   } catch (err) {
+    console.log(err?.response || err);
     const error =
       err?.response?.data?.message ||
       err?.response?.data ||
