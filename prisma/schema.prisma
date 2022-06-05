@@ -24,5 +24,6 @@ model User {
   firstName String
   lastName  String
   avatar    String @default("")
+  bio       String @default("")
   userId    String @unique
 }
