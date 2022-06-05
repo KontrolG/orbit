@@ -16,7 +16,7 @@ const AppShell = ({ children }) => {
           <div className="p-4 border-b border-gray-200 bg-white">
             <Navbar />
           </div>
-          <div className="px-4 sm:px-8 py-2 bg-gray-100">
+          <div className="px-4 sm:px-8 py-2 bg-gray-100 flex-1">
             {children}
           </div>
           <Footer />
