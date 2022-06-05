@@ -21,7 +21,7 @@ router.post<NextApiRequest, NextApiResponse>(
   "/orbit-id-for-user",
   async (req, res) => {
     try {
-      const { email, firstName, lastName, userId } = req.body;
+      const { email, firstName, lastName, avatar, userId } = req.body;
       const user = await prisma.user.findUnique({ where: { userId } });
 
       if (user) {
@@ -33,6 +33,7 @@ router.post<NextApiRequest, NextApiResponse>(
           email,
           firstName,
           lastName,
+          avatar,
           userId
         }
       });

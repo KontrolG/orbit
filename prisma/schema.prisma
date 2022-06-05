@@ -23,5 +23,6 @@ model User {
   email     String
   firstName String
   lastName  String
+  avatar    String @default("")
   userId    String @unique
 }
