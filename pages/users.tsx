@@ -2,6 +2,7 @@ import React from "react";
 import PageTitle from "../components/common/PageTitle";
 import Card from "../components/common/Card";
 import { privateFetch } from "../util/fetch";
+import AssignRolesModal from "@/components/AssignRolesModal";
 
 const UserDetailLabel = ({ text }) => (
   <p className="mt-2 uppercase font-bold text-gray-500 text-xs">{text}</p>
@@ -27,6 +28,16 @@ const UserDetail = ({ user }) => (
             <p className="text-gray-500 italic">No bio set</p>
           )}
         </div>
+      </div>
+      <div className="ml-auto ">
+        <AssignRolesModal
+          userId={user.id}
+          trigger={
+            <button className="rounded-full flex bg-gradient text-gray-100 shadow-lg py-2 px-4">
+              Assign roles
+            </button>
+          }
+        />
       </div>
     </div>
   </Card>
